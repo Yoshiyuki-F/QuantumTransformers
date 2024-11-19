@@ -9,7 +9,9 @@ readme = "README.md"
 python = ">=3.11,<3.12"
 
 jax = "0.4.29" #==jaxlib
-jaxlib = "0.4.29+cuda12.cudnn91" #latest for cuda12
+jaxlib = "0.4.29+cuda12.cudnn91"
+#latest for cuda12 tensorflow-2.18.0 requires py 3.9-3.12	Clang 17.0.6	Bazel 6.5.0	cudnn9.3	cuda12.5
+#https://www.tensorflow.org/install/source
 
 numpy = "<2" #warning
 scipy = "*"

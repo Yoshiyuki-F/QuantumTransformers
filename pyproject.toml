@@ -9,20 +9,21 @@ readme = "README.md"
 python = ">=3.11,<3.12"
 
 jax = "0.4.29" #==jaxlib
-jaxlib = "0.4.29+cuda12.cudnn91"
-#latest for cuda12 tensorflow-2.18.0 requires py 3.9-3.12	Clang 17.0.6	Bazel 6.5.0	cudnn9.3	cuda12.5
-#https://www.tensorflow.org/install/source
+jaxlib = "0.4.29+cuda12.cudnn91" #latest for cuda12
+ray = {version = "^2.39.0", extras = ["tune"]} #latest
+flax = "^0.10.1" #latest
 
 numpy = "<2" #warning
-scipy = "*"
+scipy = "*" #dependency on numpy
 
-ray = {version = "^2.39.0", extras = ["tune"]} #latest
-flax = "*" #latest
-scikit-learn =  "*" #latest
-tensorcircuit =  "*" #latest
-tensorflow-datasets = "*" #latest
-tensorflow = "2.18.0" #latest
+#https://www.tensorflow.org/install/source
+tensorflow = "2.18.0" #latest tensorflow-2.18.0 requires py 3.9-3.12	Clang 17.0.6	Bazel 6.5.0	cudnn9.3 cuda12.5
 tensorflow-text = "*" #==tensorflow
+tensorcircuit =  "^0.12.0" #latest
+tensorflow-datasets = "^4.9.7" #latest
+
+#you don't have to care much about the version for packages down below
+scikit-learn =  "^1.5.2" #latest
 optax = "^0.2.4" #latest
 ipywidgets = "^8.1.5" #latest
 tqdm = "^4.67.0" #latest

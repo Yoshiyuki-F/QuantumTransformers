@@ -7,24 +7,29 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.12"
-scikit-learn = "^1.5.0"
-tensorcircuit = "^0.11.0"
-jax = {version = "0.4.13", extras = ["cuda11-cudnn86"]}
-flax = "^0.7.1"
-optax = "^0.1.7"
-ipykernel = "^6.25.0"
-jupyterlab = "^4.0.11"
-matplotlib = "^3.7.2"
-tensorflow-datasets = "^4.9.2"
-tensorflow = "^2.14.0"
-ipywidgets = "^8.1.0"
-tqdm = "^4.66.3"
-numpy = "^1.25.2"
-gdown = "^4.7.1"
-qiskit = "^0.44.0"
-pylatexenc = "^2.10"
-tensorflow-text = "^2.14.0"
-ray = {extras = ["tune"], version = "^2.6.3"}
+
+jax = "0.4.29" #==jaxlib
+jaxlib = "0.4.29+cuda12.cudnn91" #latest for cuda12
+
+numpy = "<2" #warning
+scipy = "*"
+
+ray = {version = "^2.39.0", extras = ["tune"]} #latest
+flax = "*" #latest
+scikit-learn =  "*" #latest
+tensorcircuit =  "*" #latest
+tensorflow-datasets = "*" #latest
+tensorflow = "2.18.0" #latest
+tensorflow-text = "*" #==tensorflow
+optax = "^0.2.4" #latest
+ipywidgets = "^8.1.5" #latest
+tqdm = "^4.67.0" #latest
+gdown = "^5.2.0" #latest
+qiskit = "^1.2.4" #latest
+pylatexenc = "^2.10" #latest
+ipykernel = "^6.29.5" #latest
+jupyterlab = "^4.3.1" #latest
+matplotlib = "^3.9.2" #latest
 
 
 [[tool.poetry.source]]

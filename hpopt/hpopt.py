@@ -71,7 +71,8 @@ if __name__ == '__main__':
 
     param_space = {
         'seed': 42,
-        'data_dir': '/global/cfs/cdirs/m4392/salcc/data',
+        # 'data_dir': '/global/cfs/cdirs/m4392/salcc/data',
+        'data_dir': tune.choice(['~/.tensorflow_datasets']),
         'dataset': args.dataset,
         'quantum': args.quantum,
         'num_epochs': 100,
@@ -102,7 +103,7 @@ if __name__ == '__main__':
 
     ray.init()
 
-    resources_per_trial = {"cpu": 32, "gpu": 1}
+    resources_per_trial = {"cpu": 16, "gpu": 1}
     tuner = tune.Tuner(
         tune.with_resources(train, resources=resources_per_trial),
         tune_config=tune.TuneConfig(

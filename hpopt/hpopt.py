@@ -71,11 +71,11 @@ if __name__ == '__main__':
 
     param_space = {
         'seed': 42,
-        # 'data_dir': '/global/cfs/cdirs/m4392/salcc/data',
+        # 'data_dir': '/global/cfs/cdirs/m4392/salcc/data', broken?
         'data_dir': tune.choice(['~/.tensorflow_datasets']),
         'dataset': args.dataset,
         'quantum': args.quantum,
-        'num_epochs': 100,
+        'num_epochs': 1, # Changed 100 to 1 for cpu by yoshi
         'batch_size': tune.choice([32, 64, 128, 256, 512]),
         'hidden_size': tune.choice([2, 4, 8, 16]),
         'num_heads': tune.choice([1, 2, 4]),
@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     ray.init()
 
-    resources_per_trial = {"cpu": 16, "gpu": 1}
+    resources_per_trial = {"cpu": 16, "gpu": 0} # put the number of your cpucore by Yoshi
     tuner = tune.Tuner(
         tune.with_resources(train, resources=resources_per_trial),
         tune_config=tune.TuneConfig(

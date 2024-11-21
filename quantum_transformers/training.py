@@ -116,22 +116,38 @@ def evaluate(state: TrainState, eval_dataloader, num_classes: int,
         eval_loss /= len(eval_dataloader)
         logits = jnp.concatenate(logits)  # type: ignore
         y_true = jnp.concatenate(labels)  # type: ignore
+
         if debug:
             print(f"logits = {logits}")
+            print(f"y_true = {y_true}")
+
+        # NaN check
+        assert not jnp.isnan(logits).any(), "Logits contain NaN"
+        assert not jnp.isnan(y_true).any(), "y_true contains NaN"
+
+        # y_pred production
         if num_classes == 2:
-            y_pred = [jax.nn.sigmoid(l) for l in logits]
+            y_pred = jax.nn.sigmoid(logits).reshape(-1)
+            eval_auc = roc_auc_score(y_true, y_pred)
+
+            # ROC curve
+            eval_fpr, eval_tpr, _ = roc_curve(y_true, y_pred)
         else:
-            y_pred = [jax.nn.softmax(l) for l in logits]
+            y_pred = jax.nn.softmax(logits, axis=1)
+            eval_auc = roc_auc_score(y_true, y_pred, multi_class='ovr')
+
+            #  ROC curve for multi classification
+            eval_fpr, eval_tpr = [], []
+            for class_idx in range(num_classes):
+                fpr, tpr, _ = roc_curve((y_true == class_idx).astype(int), y_pred[:, class_idx])
+                eval_fpr.append(fpr)
+                eval_tpr.append(tpr)
+
         if debug:
             print(f"y_pred = {y_pred}")
-            print(f"y_true = {y_true}")
-        if num_classes == 2:
-            eval_fpr, eval_tpr, _ = roc_curve(y_true, y_pred)
-            eval_auc = auc(eval_fpr, eval_tpr)
-        else:
-            eval_fpr, eval_tpr = [], []
-            eval_auc = roc_auc_score(y_true, y_pred, multi_class='ovr')
+
         progress_bar.set_postfix_str(f"Loss = {eval_loss:.4f}, AUC = {eval_auc:.3f}")
+
     return eval_loss, eval_auc, eval_fpr, eval_tpr
 
 

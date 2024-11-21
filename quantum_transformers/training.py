@@ -216,11 +216,15 @@ def train_and_evaluate(model: flax.linen.Module, train_dataloader, val_dataloade
         'test_tpr': [],
     }
 
+    update_freq = 10  # 10バッチに1回更新
+
     for epoch in range(num_epochs):
         with tqdm(total=len(train_dataloader), desc=f"Epoch {epoch+1:3}/{num_epochs}", unit="batch", bar_format=TQDM_BAR_FORMAT) as progress_bar:
             epoch_train_time = time.time()
             for inputs_batch, labels_batch in train_dataloader:
                 state = train_step(state, inputs_batch, labels_batch, train_key)
+                # if inputs_batch % update_freq == 0:
+                # print(state)
                 progress_bar.update(1)
             epoch_train_time = time.time() - epoch_train_time
             total_train_time += epoch_train_time

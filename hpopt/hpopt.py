@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     ray.init()
 
-    resources_per_trial = {"cpu": 16, "gpu": 0} # put the number of your cpucore by Yoshi
+    resources_per_trial = {"cpu": 8, "gpu": 0} # put the number of your cpucore by Yoshi
     tuner = tune.Tuner(
         tune.with_resources(train, resources=resources_per_trial),
         tune_config=tune.TuneConfig(

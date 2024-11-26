@@ -8,8 +8,8 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.11,<3.12"
 
-jax = "0.4.29" #==jaxlib
-jaxlib = {version = "0.4.29", extras = ["cpu"]} #latest for cuda12 cupu
+jax = "0.4.35" #==jaxlib
+jaxlib = "0.4.35"
 ray = {version = "^2.39.0", extras = ["tune"]} #latest
 flax = "^0.10.1" #latest
 

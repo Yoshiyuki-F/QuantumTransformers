@@ -5,8 +5,7 @@ import argparse
 import ray
 from ray import tune, air
 
-
-vision_datasets = ['mnist', 'electron-photon', 'quark-gluon']  # TODO: add medmnist
+vision_datasets = ['mnist', 'electron-photon', 'quark-gluon']
 text_datasets = ['imdb']
 
 
@@ -23,44 +22,48 @@ def train(config) -> None:
     c = config  # Shorter alias for config
     tf.random.set_seed(c['seed'])  # For reproducible data loading
 
-    num_classes = {'imdb': 2, 'mnist': 10, 'electron-photon': 2, 'quark-gluon': 2}  # TODO: add medmnist
+    num_classes = {'imdb': 2, 'mnist': 10, 'electron-photon': 2, 'quark-gluon': 2}
     model: Transformer | VisionTransformer
     if c['dataset'] in text_datasets:  # Text datasets
         if c['dataset'] == 'imdb':
-            (train_dataloader, val_dataloader, test_dataloader), vocab, _ = datasets.get_imdb_dataloaders(data_dir=c['data_dir'], batch_size=c['batch_size'],
-                                                                                                          max_seq_len=c['max_seq_len'], max_vocab_size=c['vocab_size'])
+            (train_dataloader, val_dataloader, test_dataloader), vocab, _ = datasets.get_imdb_dataloaders(
+                data_dir=c['data_dir'], batch_size=c['batch_size'],
+                max_seq_len=c['max_seq_len'], max_vocab_size=c['vocab_size'])
         else:
             raise ValueError(f"Unknown dataset {c['dataset']}")
 
         model = Transformer(num_tokens=len(vocab), max_seq_len=c['max_seq_len'], num_classes=num_classes[c['dataset']],
-                            hidden_size=c['hidden_size'], num_heads=c['num_heads'], num_transformer_blocks=c['num_transformer_blocks'], mlp_hidden_size=c['mlp_hidden_size'],
+                            hidden_size=c['hidden_size'], num_heads=c['num_heads'],
+                            num_transformer_blocks=c['num_transformer_blocks'], mlp_hidden_size=c['mlp_hidden_size'],
                             dropout=c['dropout'],
-                            quantum_attn_circuit=get_circuit() if c['quantum'] else None, quantum_mlp_circuit=get_circuit() if c['quantum'] else None)
+                            quantum_attn_circuit=get_circuit() if c['quantum'] else None,
+                            quantum_mlp_circuit=get_circuit() if c['quantum'] else None)
     else:  # Vision datasets
         if c['dataset'] == 'mnist':
-            train_dataloader, val_dataloader, test_dataloader = datasets.get_mnist_dataloaders(data_dir=c['data_dir'], batch_size=c['batch_size'])
-        elif c['dataset'] == 'electron-photon':
-            train_dataloader, val_dataloader, test_dataloader = datasets.get_electron_photon_dataloaders(data_dir=c['data_dir'], batch_size=c['batch_size'])
-        elif c['dataset'] == 'quark-gluon':
-            train_dataloader, val_dataloader, test_dataloader = datasets.get_quark_gluon_dataloaders(data_dir=c['data_dir'], batch_size=c['batch_size'])
-        elif c['dataset'].startswith('medmnist-'):
-            raise NotImplementedError("MedMNIST is not yet supported")  # TODO: add medmnist
-            train_dataloader, val_dataloader, test_dataloader = datasets.get_medmnist_dataloaders(dataset=c['dataset'].split('-')[1], data_dir=c['data_dir'], batch_size=c['batch_size'])
+            train_dataloader, val_dataloader, test_dataloader = datasets.get_mnist_dataloaders(data_dir=c['data_dir'],
+                                                                                               batch_size=c[
+                                                                                                   'batch_size'])
         else:
             raise ValueError(f"Unknown dataset {c['dataset']}")
 
         model = VisionTransformer(num_classes=num_classes[c['dataset']], patch_size=c['patch_size'],
-                                  hidden_size=c['hidden_size'], num_heads=c['num_heads'], num_transformer_blocks=c['num_transformer_blocks'], mlp_hidden_size=c['mlp_hidden_size'],
+                                  hidden_size=c['hidden_size'], num_heads=c['num_heads'],
+                                  num_transformer_blocks=c['num_transformer_blocks'],
+                                  mlp_hidden_size=c['mlp_hidden_size'],
                                   pos_embedding=c['pos_embedding'], dropout=c['dropout'],
-                                  quantum_attn_circuit=get_circuit() if c['quantum'] else None, quantum_mlp_circuit=get_circuit() if c['quantum'] else None)
+                                  quantum_attn_circuit=get_circuit() if c['quantum'] else None,
+                                  quantum_mlp_circuit=get_circuit() if c['quantum'] else None)
 
-    train_and_evaluate(model=model, train_dataloader=train_dataloader, val_dataloader=val_dataloader, test_dataloader=test_dataloader, num_classes=num_classes[c['dataset']],
-                       num_epochs=c['num_epochs'], lrs_peak_value=c['lrs_peak_value'], lrs_warmup_steps=c['lrs_warmup_steps'], lrs_decay_steps=c['lrs_decay_steps'],
+    train_and_evaluate(model=model, train_dataloader=train_dataloader, val_dataloader=val_dataloader,
+                       test_dataloader=test_dataloader, num_classes=num_classes[c['dataset']],
+                       num_epochs=c['num_epochs'], lrs_peak_value=c['lrs_peak_value'],
+                       lrs_warmup_steps=c['lrs_warmup_steps'], lrs_decay_steps=c['lrs_decay_steps'],
                        seed=c['seed'], use_ray=True)
 
 
 if __name__ == '__main__':
-    argparser = argparse.ArgumentParser(description='DO NOT RUN THIS DIRECTLY! Execute submit-ray-cluster.sh instead (see README.md for details).')
+    argparser = argparse.ArgumentParser(
+        description='DO NOT RUN THIS DIRECTLY! Execute submit-ray-cluster.sh instead (see README.md for details).')
 
     argparser.add_argument('dataset', type=str, help='name of dataset to train on',
                            choices=vision_datasets + text_datasets)
@@ -71,7 +74,6 @@ if __name__ == '__main__':
 
     param_space = {
         'seed': 42,
-        # 'data_dir': '/global/cfs/cdirs/m4392/salcc/data',
         'data_dir': tune.choice(['~/.tensorflow_datasets']),
         'dataset': args.dataset,
         'quantum': args.quantum,

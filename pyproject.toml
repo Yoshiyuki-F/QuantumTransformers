@@ -8,9 +8,9 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.11,<3.12"
 
-jax = "0.4.29" #==jaxlib
-jaxlib = "0.4.29+cuda12.cudnn91" #latest for cuda12
-ray = {version = "^2.39.0", extras = ["tune"]} #latest
+jax = { version = "0.4.29", source = "jax_cuda" }#==jaxlib
+jaxlib = { version = "0.4.29", source = "jax_cuda" }#latest for cuda12
+ray = { version = "^2.39.0", extras = ["tune"] } #latest
 flax = "^0.10.1" #latest
 
 numpy = "<2" #warning
@@ -19,11 +19,11 @@ scipy = "*" #dependency on numpy
 #https://www.tensorflow.org/install/source
 tensorflow = "2.18.0" #latest tensorflow-2.18.0 requires py 3.9-3.12	Clang 17.0.6	Bazel 6.5.0	cudnn9.3 cuda12.5
 tensorflow-text = "*" #==tensorflow
-tensorcircuit =  "^0.12.0" #latest
+tensorcircuit = "^0.12.0" #latest
 tensorflow-datasets = "^4.9.7" #latest
 
 #you don't have to care much about the version for packages down below
-scikit-learn =  "^1.5.2" #latest
+scikit-learn = "^1.5.2" #latest
 optax = "^0.2.4" #latest
 ipywidgets = "^8.1.5" #latest
 tqdm = "^4.67.0" #latest
@@ -47,7 +47,7 @@ priority = "primary"
 
 
 [tool.poetry.group.dev.dependencies]
-nbqa = {extras = ["toolchain"], version = "^1.7.0"}
+nbqa = { extras = ["toolchain"], version = "^1.7.0" }
 
 [build-system]
 requires = ["poetry-core"]

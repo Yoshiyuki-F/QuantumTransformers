@@ -9,6 +9,7 @@ import flax.training.train_state
 import optax
 from sklearn.metrics import roc_auc_score, roc_curve, auc
 from tqdm import tqdm
+import tensorflow as tf
 
 
 TQDM_BAR_FORMAT = '{l_bar}{bar:10}{r_bar}{bar:-10b}'
@@ -16,11 +17,11 @@ TQDM_BAR_FORMAT = '{l_bar}{bar:10}{r_bar}{bar:-10b}'
 
 class TrainState(flax.training.train_state.TrainState):
     # See https://flax.readthedocs.io/en/latest/guides/dropout.html.
-    key: jax.random.PRNGKey   # type: ignore
+    key: jax.Array  # type: ignore
 
 
 @jax.jit
-def train_step(state: TrainState, inputs: jax.Array, labels: jax.Array, key: jax.random.PRNGKey) -> TrainState:
+def train_step(state: TrainState, inputs: jax.Array, labels: jax.Array, key: jax.Array) -> TrainState:
     """
     Performs a single training step on the given batch of inputs and labels.
 
@@ -49,10 +50,8 @@ def train_step(state: TrainState, inputs: jax.Array, labels: jax.Array, key: jax
             loss = optax.sigmoid_binary_cross_entropy(logits=logits, labels=labels).mean()
         else:
             loss = optax.softmax_cross_entropy_with_integer_labels(logits=logits, labels=labels).mean()
-        # return loss, logits
         return loss
-    # grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-    # (loss, logits), grads = grad_fn(state.params)
+
     grad_fn = jax.grad(loss_fn)
     grads = grad_fn(state.params)
     state = state.apply_gradients(grads=grads)
@@ -135,30 +134,16 @@ def evaluate(state: TrainState, eval_dataloader, num_classes: int,
     return eval_loss, eval_auc, eval_fpr, eval_tpr
 
 
-def train_and_evaluate(model: flax.linen.Module, train_dataloader, val_dataloader, test_dataloader, num_classes: int,
-                       num_epochs: int, lrs_peak_value: float = 1e-3, lrs_warmup_steps: int = 5_000, lrs_decay_steps: int = 50_000,
-                       seed: int = 42, use_ray: bool = False, debug: bool = False) -> tuple[float, float, npt.ArrayLike, npt.ArrayLike]:
-    """
-    Trains the given model on the given dataloaders for the given hyperparameters.
+def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader, num_classes,
+                       num_epochs, lrs_peak_value=1e-3, lrs_warmup_steps=5000, lrs_decay_steps=50000,
+                       seed=42, use_ray=False, debug=False):
 
-    The progress and evaluation results are printed to stdout.
-
-    Args:
-        model: The model to train.
-        train_dataloader: The dataloader for the training set.
-        val_dataloader: The dataloader for the validation set.
-        num_classes: The number of classes.
-        num_epochs: The number of epochs to train for.
-        learning_rate: The learning rate to use.
-        seed: The seed to use for reproducibility.
-        use_ray: Whether to use Ray for logging.
-        debug: Whether to print extra information for debugging.
-
-    Returns:
-        None
-    """
     if use_ray:
         from ray.air import session
+
+    # 创建tensorboard日志写入器
+    log_dir = "log/"
+    writer = tf.summary.create_file_writer(log_dir)
 
     root_key = jax.random.PRNGKey(seed=seed)
     root_key, params_key, train_key = jax.random.split(key=root_key, num=3)
@@ -216,15 +201,11 @@ def train_and_evaluate(model: flax.linen.Module, train_dataloader, val_dataloade
         'test_tpr': [],
     }
 
-    update_freq = 10  # 10バッチに1回更新
-
     for epoch in range(num_epochs):
         with tqdm(total=len(train_dataloader), desc=f"Epoch {epoch+1:3}/{num_epochs}", unit="batch", bar_format=TQDM_BAR_FORMAT) as progress_bar:
             epoch_train_time = time.time()
             for inputs_batch, labels_batch in train_dataloader:
                 state = train_step(state, inputs_batch, labels_batch, train_key)
-                # if inputs_batch % update_freq == 0:
-                # print(state)
                 progress_bar.update(1)
             epoch_train_time = time.time() - epoch_train_time
             total_train_time += epoch_train_time
@@ -232,6 +213,13 @@ def train_and_evaluate(model: flax.linen.Module, train_dataloader, val_dataloade
             train_loss, train_auc, _, _ = evaluate(state, train_dataloader, num_classes, tqdm_desc=None, debug=debug)
             val_loss, val_auc, _, _ = evaluate(state, val_dataloader, num_classes, tqdm_desc=None, debug=debug)
             progress_bar.set_postfix_str(f"Loss = {val_loss:.4f}, AUC = {val_auc:.3f}, Train time = {epoch_train_time:.2f}s")
+
+            # 使用tensorboard记录指标
+            with writer.as_default():
+                tf.summary.scalar('train_loss', train_loss, step=epoch)
+                tf.summary.scalar('train_auc', train_auc, step=epoch)
+                tf.summary.scalar('val_loss', val_loss, step=epoch)
+                tf.summary.scalar('val_auc', val_auc, step=epoch)
 
             metrics['train_losses'].append(train_loss)
             metrics['val_losses'].append(val_loss)
@@ -243,6 +231,7 @@ def train_and_evaluate(model: flax.linen.Module, train_dataloader, val_dataloade
                 best_state = state
             if use_ray:
                 session.report({'val_loss': val_loss, 'val_auc': val_auc, 'best_val_auc': best_val_auc, 'best_epoch': best_epoch})
+
     metrics['train_losses'] = jnp.array(metrics['train_losses'])
     metrics['val_losses'] = jnp.array(metrics['val_losses'])
     metrics['train_aucs'] = jnp.array(metrics['train_aucs'])
@@ -258,6 +247,14 @@ def train_and_evaluate(model: flax.linen.Module, train_dataloader, val_dataloade
     metrics['test_auc'] = test_auc
     metrics['test_fpr'] = test_fpr
     metrics['test_tpr'] = test_tpr
+
+    # 测试集指标也写入tensorboard
+    with writer.as_default():
+        tf.summary.scalar('test_loss', test_loss, step=num_epochs)
+        tf.summary.scalar('test_auc', test_auc, step=num_epochs)
+
     if use_ray:
         session.report({'test_loss': test_loss, 'test_auc': test_auc})
+
     return metrics
+

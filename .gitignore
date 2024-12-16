@@ -1,9 +1,0 @@
-.vscode/
-ignore/
-data/
-__pycache__/
-.ipynb_checkpoints/
-*.egg-info/
-wandb/
-*.pkl
-.idea

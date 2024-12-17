@@ -34,30 +34,31 @@ def train(config) -> None:
         else:
             raise ValueError(f"Unknown dataset {c['dataset']}")
 
-        model = Transformer(num_tokens=len(vocab), max_seq_len=c['max_seq_len'], num_classes=num_classes[c['dataset']],
-                            hidden_size=c['hidden_size'], num_heads=c['num_heads'],
-                            num_transformer_blocks=c['num_transformer_blocks'], mlp_hidden_size=c['mlp_hidden_size'],
+        model = Transformer(num_tokens=len(vocab),
+                            max_seq_len=c['max_seq_len'],
+                            num_classes=num_classes[c['dataset']],
+                            hidden_size=c['hidden_size'],
+                            num_heads=c['num_heads'],
+                            num_transformer_blocks=c['num_transformer_blocks'],
+                            mlp_hidden_size=c['mlp_hidden_size'],
                             dropout=c['dropout'],
                             quantum_attn_circuit=get_circuit() if c['quantum'] else None,
                             quantum_mlp_circuit=get_circuit() if c['quantum'] else None)
     elif c.get('swin', False):
-        train_dataloader, val_dataloader, test_dataloader = datasets.get_mnist_dataloaders(data_dir=c['data_dir'],
-                                                                                               batch_size=c[
-                                                                                                   'batch_size'])
+        train_dataloader, val_dataloader, test_dataloader = (
+            datasets.get_mnist_dataloaders(data_dir=c['data_dir'], batch_size=c['batch_size']))
         # Initialize SwinTransformer
-        model = SwinTransformer(
-            hidden_dim=c['hidden_size'],
-            layers=(2, 2),
-            heads=(2, 4),
-            channels=1,
-            num_classes=num_classes[c['dataset']],
-            head_dim=4,
-            window_size=7,
-            downscaling_factors=(2, 1),
-            relative_pos_embedding=True,
-            quantum_attn_circuit=get_circuit() if c['quantum'] else None,
-            quantum_mlp_circuit=get_circuit() if c['quantum'] else None
-        )
+        model = SwinTransformer(hidden_dim=c['hidden_size'],
+                                layers=(2, 2),
+                                heads=(2, 4),
+                                channels=1,
+                                num_classes=num_classes[c['dataset']],
+                                head_dim=4,
+                                window_size=7,
+                                downscaling_factors=(2, 1),
+                                relative_pos_embedding=True,
+                                quantum_attn_circuit=get_circuit() if c['quantum'] else None,
+                                quantum_mlp_circuit=get_circuit() if c['quantum'] else None)
     else:  # Vision datasets
         if c['dataset'] == 'mnist':
             train_dataloader, val_dataloader, test_dataloader = datasets.get_mnist_dataloaders(data_dir=c['data_dir'],
@@ -71,8 +72,6 @@ def train(config) -> None:
                 data_dir=c['data_dir'], batch_size=c['batch_size'])
         elif c['dataset'].startswith('medmnist-'):
             raise NotImplementedError("MedMNIST is not yet supported")
-            train_dataloader, val_dataloader, test_dataloader = datasets.get_medmnist_dataloaders(
-                dataset=c['dataset'].split('-')[1], data_dir=c['data_dir'], batch_size=c['batch_size'])
         else:
             raise ValueError(f"Unknown dataset {c['dataset']}")
 
@@ -90,11 +89,17 @@ def train(config) -> None:
         # 训练和评估SwinTransformer
 
     # 训练和评估VisionTransformer
-    train_and_evaluate(model=model, train_dataloader=train_dataloader, val_dataloader=val_dataloader,
-                       test_dataloader=test_dataloader, num_classes=num_classes[c['dataset']],
-                       num_epochs=c['num_epochs'], lrs_peak_value=c['lrs_peak_value'],
-                       lrs_warmup_steps=c['lrs_warmup_steps'], lrs_decay_steps=c['lrs_decay_steps'],
-                       seed=c['seed'], use_ray=True)
+    train_and_evaluate(model=model,
+                       train_dataloader=train_dataloader,
+                       val_dataloader=val_dataloader,
+                       test_dataloader=test_dataloader,
+                       num_classes=num_classes[c['dataset']],
+                       num_epochs=c['num_epochs'],
+                       lrs_peak_value=c['lrs_peak_value'],
+                       lrs_warmup_steps=c['lrs_warmup_steps'],
+                       lrs_decay_steps=c['lrs_decay_steps'],
+                       seed=c['seed'],
+                       use_ray=True)
 
 
 if __name__ == '__main__':

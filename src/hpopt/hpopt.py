@@ -41,8 +41,8 @@ def train(config) -> None:
                             hidden_size=c['hidden_size'], num_heads=c['num_heads'],
                             num_transformer_blocks=c['num_transformer_blocks'], mlp_hidden_size=c['mlp_hidden_size'],
                             dropout=c['dropout'],
-                            quantum_attn_circuit=get_circuit(num_qubits=c['hidden_size']) if c['quantum'] else None,
-                            quantum_mlp_circuit=get_circuit(num_qubits=c['hidden_size']) if c['quantum'] else None,
+                            quantum_attn_circuit=get_circuit() if c['quantum'] else None,
+                            quantum_mlp_circuit=get_circuit() if c['quantum'] else None,
                             use_pennylane=c['pl'])
     elif c.get('swin', False):
         train_dataloader, val_dataloader, test_dataloader = datasets.get_mnist_dataloaders(data_dir=c['data_dir'],
@@ -59,8 +59,8 @@ def train(config) -> None:
             window_size=7,
             downscaling_factors=(2, 1),
             relative_pos_embedding=True,
-            quantum_attn_circuit=get_circuit(num_qubits=c['hidden_size']) if c['quantum'] else None,
-            quantum_mlp_circuit=get_circuit(num_qubits=c['hidden_size']) if c['quantum'] else None,
+            quantum_attn_circuit=get_circuit() if c['quantum'] else None,
+            quantum_mlp_circuit=get_circuit() if c['quantum'] else None,
             use_pennylane=c['pl']
         )
     else:  # Vision datasets
@@ -87,8 +87,8 @@ def train(config) -> None:
                                   num_transformer_blocks=c['num_transformer_blocks'],
                                   mlp_hidden_size=c['mlp_hidden_size'],
                                   pos_embedding=c['pos_embedding'], dropout=c['dropout'],
-                                  quantum_attn_circuit=get_circuit(num_qubits=c['hidden_size']) if c['quantum'] else None,
-                                  quantum_mlp_circuit=get_circuit(num_qubits=c['hidden_size']) if c['quantum'] else None,
+                                  quantum_attn_circuit=get_circuit() if c['quantum'] else None,
+                                  quantum_mlp_circuit=get_circuit() if c['quantum'] else None,
                                   use_pennylane=c['pl'])
 
     # Train and evaluate

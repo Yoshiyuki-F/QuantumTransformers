@@ -5,8 +5,9 @@ import argparse
 import ray
 from ray import tune, air
 
-vision_datasets = ['mnist', 'electron-photon', 'quark-gluon']
+vision_datasets = ['mnist', 'electron-photon', 'quark-gluon']  # TODO: add medmnist
 text_datasets = ['imdb']
+
 
 def train(config) -> None:
     # Perform imports here to avoid warning messages when running only --help
@@ -22,7 +23,7 @@ def train(config) -> None:
     c = config  # Shorter alias for config
     tf.random.set_seed(c['seed'])  # For reproducible data loading
 
-    num_classes = {'imdb': 2, 'mnist': 10, 'electron-photon': 2, 'quark-gluon': 2}
+    num_classes = {'imdb': 2, 'mnist': 10, 'electron-photon': 2, 'quark-gluon': 2}  # TODO: add medmnist
     model: Transformer | VisionTransformer | SwinTransformer  # Update model type
 
     if c['dataset'] in text_datasets:  # Text datasets
@@ -33,28 +34,27 @@ def train(config) -> None:
         else:
             raise ValueError(f"Unknown dataset {c['dataset']}")
 
-        model = Transformer(num_tokens=len(vocab),
-                            max_seq_len=c['max_seq_len'],
-                            num_classes=num_classes[c['dataset']],
-                            hidden_size=c['hidden_size'],
-                            num_heads=c['num_heads'],
-                            num_transformer_blocks=c['num_transformer_blocks'],
-                            mlp_hidden_size=c['mlp_hidden_size'],
+        model = Transformer(num_tokens=len(vocab), max_seq_len=c['max_seq_len'], num_classes=num_classes[c['dataset']],
+                            hidden_size=c['hidden_size'], num_heads=c['num_heads'],
+                            num_transformer_blocks=c['num_transformer_blocks'], mlp_hidden_size=c['mlp_hidden_size'],
                             dropout=c['dropout'],
                             quantum_attn_circuit=get_circuit() if c['quantum'] else None,
                             quantum_mlp_circuit=get_circuit() if c['quantum'] else None)
     elif c.get('swin', False):
-        train_dataloader, val_dataloader, test_dataloader = (
-            datasets.get_mnist_dataloaders(data_dir=c['data_dir'], batch_size=c['batch_size']))
-
-        # Initialize SwinTransformer directly with parameters
+        train_dataloader, val_dataloader, test_dataloader = datasets.get_mnist_dataloaders(data_dir=c['data_dir'],
+                                                                                               batch_size=c[
+                                                                                                   'batch_size'])
+        # Initialize SwinTransformer
         model = SwinTransformer(
-            embed_dim=c['hidden_size'],
-            window_size=7,
+            hidden_dim=c['hidden_size'],
+            layers=(2, 2),
+            heads=(2, 4),
+            channels=1,
             num_classes=num_classes[c['dataset']],
-            depths=(2, 2),
-            num_heads=(2, 4),
-            in_chans=1,
+            head_dim=4,
+            window_size=7,
+            downscaling_factors=(2, 1),
+            relative_pos_embedding=True,
             quantum_attn_circuit=get_circuit() if c['quantum'] else None,
             quantum_mlp_circuit=get_circuit() if c['quantum'] else None
         )
@@ -70,7 +70,9 @@ def train(config) -> None:
             train_dataloader, val_dataloader, test_dataloader = datasets.get_quark_gluon_dataloaders(
                 data_dir=c['data_dir'], batch_size=c['batch_size'])
         elif c['dataset'].startswith('medmnist-'):
-            raise NotImplementedError("MedMNIST is not yet supported")
+            raise NotImplementedError("MedMNIST is not yet supported")  # TODO: add medmnist
+            train_dataloader, val_dataloader, test_dataloader = datasets.get_medmnist_dataloaders(
+                dataset=c['dataset'].split('-')[1], data_dir=c['data_dir'], batch_size=c['batch_size'])
         else:
             raise ValueError(f"Unknown dataset {c['dataset']}")
 
@@ -85,20 +87,15 @@ def train(config) -> None:
 
         # Check if --swin is specified
 
-        # 训练和评估SwinTransformer
+        # Train and evaluate SwinTransformer
 
-    # 训练和评估VisionTransformer
-    train_and_evaluate(model=model,
-                       train_dataloader=train_dataloader,
-                       val_dataloader=val_dataloader,
-                       test_dataloader=test_dataloader,
-                       num_classes=num_classes[c['dataset']],
-                       num_epochs=c['num_epochs'],
-                       lrs_peak_value=c['lrs_peak_value'],
-                       lrs_warmup_steps=c['lrs_warmup_steps'],
-                       lrs_decay_steps=c['lrs_decay_steps'],
-                       seed=c['seed'],
-                       use_ray=True)
+    # Train and evaluate VisionTransformer
+    train_and_evaluate(model=model, train_dataloader=train_dataloader, val_dataloader=val_dataloader,
+                       test_dataloader=test_dataloader, num_classes=num_classes[c['dataset']],
+                       num_epochs=c['num_epochs'], lrs_peak_value=c['lrs_peak_value'],
+                       lrs_warmup_steps=c['lrs_warmup_steps'], lrs_decay_steps=c['lrs_decay_steps'],
+                       seed=c['seed'], use_ray=True)
+
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(
@@ -118,12 +115,12 @@ if __name__ == '__main__':
         'dataset': args.dataset,
         'quantum': args.quantum,
         'swin': args.swin,  # Add swin parameter to config
-        'num_epochs': 100,
-        'batch_size': tune.choice([32, 64, 128, 256, 512]),
-        'hidden_size': tune.choice([2, 4, 8, 16]),
-        'num_heads': tune.choice([1, 2, 4]),
-        'num_transformer_blocks': tune.choice([1, 2, 3, 4, 5, 6, 7, 8]),
-        'mlp_hidden_size': tune.choice([2, 4]),
+        'num_epochs': 10,
+        'batch_size': tune.choice([32]),
+        'hidden_size': tune.choice([8]),
+        'num_heads': tune.choice([1, 2]),
+        'num_transformer_blocks': tune.choice([1, 2]),
+        'mlp_hidden_size': tune.choice([4]),
         'dropout': tune.uniform(0.0, 0.5),
         'lrs_peak_value': tune.loguniform(1e-5, 1),
         'lrs_warmup_steps': tune.choice([0, 1000, 5000, 10000]),
@@ -146,7 +143,7 @@ if __name__ == '__main__':
 
     ray.init()
 
-    resources_per_trial = {"cpu": 16, "gpu": 1}
+    resources_per_trial = {"cpu": 12, "gpu": 1}
     tuner = tune.Tuner(
         tune.with_resources(train, resources=resources_per_trial),
         tune_config=tune.TuneConfig(
@@ -157,5 +154,3 @@ if __name__ == '__main__':
         param_space=param_space,
     )
     results = tuner.fit()
-
-

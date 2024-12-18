@@ -8,7 +8,6 @@ from ray import tune, air
 vision_datasets = ['mnist', 'electron-photon', 'quark-gluon']
 text_datasets = ['imdb']
 
-
 def train(config) -> None:
     # Perform imports here to avoid warning messages when running only --help
     import tensorflow as tf
@@ -47,18 +46,18 @@ def train(config) -> None:
     elif c.get('swin', False):
         train_dataloader, val_dataloader, test_dataloader = (
             datasets.get_mnist_dataloaders(data_dir=c['data_dir'], batch_size=c['batch_size']))
-        # Initialize SwinTransformer
-        model = SwinTransformer(hidden_dim=c['hidden_size'],
-                                layers=(2, 2),
-                                heads=(2, 4),
-                                channels=1,
-                                num_classes=num_classes[c['dataset']],
-                                head_dim=4,
-                                window_size=7,
-                                downscaling_factors=(2, 1),
-                                relative_pos_embedding=True,
-                                quantum_attn_circuit=get_circuit() if c['quantum'] else None,
-                                quantum_mlp_circuit=get_circuit() if c['quantum'] else None)
+
+        # Initialize SwinTransformer directly with parameters
+        model = SwinTransformer(
+            embed_dim=c['hidden_size'],
+            window_size=7,
+            num_classes=num_classes[c['dataset']],
+            depths=(2, 2),
+            num_heads=(2, 4),
+            in_chans=1,
+            quantum_attn_circuit=get_circuit() if c['quantum'] else None,
+            quantum_mlp_circuit=get_circuit() if c['quantum'] else None
+        )
     else:  # Vision datasets
         if c['dataset'] == 'mnist':
             train_dataloader, val_dataloader, test_dataloader = datasets.get_mnist_dataloaders(data_dir=c['data_dir'],
@@ -100,7 +99,6 @@ def train(config) -> None:
                        lrs_decay_steps=c['lrs_decay_steps'],
                        seed=c['seed'],
                        use_ray=True)
-
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(
@@ -159,3 +157,5 @@ if __name__ == '__main__':
         param_space=param_space,
     )
     results = tuner.fit()
+
+

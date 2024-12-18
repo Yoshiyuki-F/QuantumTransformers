@@ -47,7 +47,7 @@ def get_quantum_layer_circuit(inputs, weights,
 
 
 def get_circuit(embedding: Callable = angle_embedding, vqc: Callable = basic_vqc,
-                torch_interface: bool = False):
+                torch_interface: bool = False, num_qubits:int = 0):
     def qpred(inputs, weights):
         c = get_quantum_layer_circuit(inputs, weights, embedding, vqc)
         return K.real(jnp.array([c.expectation_ps(z=[i]) for i in range(weights.shape[1])]))

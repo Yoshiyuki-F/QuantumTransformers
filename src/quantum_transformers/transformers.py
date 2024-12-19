@@ -3,7 +3,6 @@ import flax.linen as nn
 import jax.numpy as jnp
 
 from src.quantum_transformers.quantum_layer import QuantumLayer
-from src.quantum_transformers.quantum_layer_pennylane import QuantumLayer as QuantumLayerPL
 
 # See:
 # - https://nlp.seas.harvard.edu/annotated-transformer/
@@ -35,12 +34,11 @@ class MultiHeadSelfAttention(nn.Module):
                                     nn.Dense(features=hidden_size)], [x, x, x])
             ]
         else:
-            QuantumLayerModule = QuantumLayerPL if self.use_pennylane else QuantumLayer
             q, k, v = [
                 proj(x).reshape(batch_size, seq_len, self.num_heads, head_dim).swapaxes(1, 2)
-                for proj, x in zip([QuantumLayerModule(num_qubits=hidden_size, w_shape=self.quantum_w_shape, circuit=self.quantum_circuit),
-                                    QuantumLayerModule(num_qubits=hidden_size, w_shape=self.quantum_w_shape, circuit=self.quantum_circuit),
-                                    QuantumLayerModule(num_qubits=hidden_size, w_shape=self.quantum_w_shape, circuit=self.quantum_circuit)], [x, x, x])
+                for proj, x in zip([QuantumLayer(num_qubits=hidden_size, w_shape=self.quantum_w_shape, circuit=self.quantum_circuit),
+                                    QuantumLayer(num_qubits=hidden_size, w_shape=self.quantum_w_shape, circuit=self.quantum_circuit),
+                                    QuantumLayer(num_qubits=hidden_size, w_shape=self.quantum_w_shape, circuit=self.quantum_circuit)], [x, x, x])
             ]
 
         # Compute scaled dot-product attention
@@ -59,8 +57,7 @@ class MultiHeadSelfAttention(nn.Module):
         if self.quantum_circuit is None:
             x = nn.Dense(features=hidden_size)(values)
         else:
-            QuantumLayerModule = QuantumLayerPL if self.use_pennylane else QuantumLayer
-            x = QuantumLayerModule(num_qubits=hidden_size, w_shape=self.quantum_w_shape, circuit=self.quantum_circuit)(values)
+            x = QuantumLayer(num_qubits=hidden_size, w_shape=self.quantum_w_shape, circuit=self.quantum_circuit)(values)
         # x.shape = (batch_size, seq_len, hidden_size)
 
         return x
@@ -78,8 +75,7 @@ class FeedForward(nn.Module):
     def __call__(self, x, deterministic):
         x = nn.Dense(features=self.mlp_hidden_size)(x)
         if self.quantum_circuit is not None:
-            QuantumLayerModule = QuantumLayerPL if self.use_pennylane else QuantumLayer
-            x = QuantumLayerModule(num_qubits=self.mlp_hidden_size, w_shape=self.quantum_w_shape, circuit=self.quantum_circuit)(x)
+            x = QuantumLayer(num_qubits=self.mlp_hidden_size, w_shape=self.quantum_w_shape, circuit=self.quantum_circuit)(x)
         x = nn.Dropout(rate=self.dropout)(x, deterministic=deterministic)
         x = nn.gelu(x)
         x = nn.Dense(features=self.hidden_size)(x)

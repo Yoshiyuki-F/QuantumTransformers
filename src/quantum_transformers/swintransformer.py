@@ -2,7 +2,6 @@ import flax.linen as nn
 import jax.numpy as jnp
 from einops import rearrange
 from src.quantum_transformers.quantum_layer import QuantumLayer
-from src.quantum_transformers.quantum_layer_pennylane import QuantumLayer as QuantumLayerPL
 from typing import Optional, Callable
 
 class CyclicShift(nn.Module):
@@ -43,7 +42,6 @@ class FeedForward(nn.Module):
             x = nn.gelu(x)
             x = nn.Dense(features=self.dim)(x)
         else:
-            QuantumLayerModule = QuantumLayerPL if self.use_pennylane else QuantumLayer
 
             x = nn.Dense(features=self.hidden_dim)(x)
             x = nn.gelu(x)
@@ -52,7 +50,7 @@ class FeedForward(nn.Module):
             quantum_dim = min(8, self.hidden_dim)
 
             x = x.reshape(flat_batch_size, -1)[:, :quantum_dim]
-            x = QuantumLayerModule(num_qubits=quantum_dim,
+            x = QuantumLayer(num_qubits=quantum_dim,
                              w_shape=self.quantum_w_shape,
                              circuit=self.quantum_circuit)(x)
 
@@ -103,8 +101,6 @@ class WindowAttention(nn.Module):
             k = nn.Dense(features=inner_dim, use_bias=False)(x)
             v = nn.Dense(features=inner_dim, use_bias=False)(x)
         else:
-            QuantumLayerModule = QuantumLayerPL if self.use_pennylane else QuantumLayer
-
             q = nn.Dense(features=inner_dim, use_bias=False)(x)
             k = nn.Dense(features=inner_dim, use_bias=False)(x)
             v = nn.Dense(features=inner_dim, use_bias=False)(x)
@@ -117,11 +113,11 @@ class WindowAttention(nn.Module):
             k = k.reshape(flat_batch_size, -1)[:, :quantum_dim]
             v = v.reshape(flat_batch_size, -1)[:, :quantum_dim]
 
-            q = QuantumLayerModule(num_qubits=quantum_dim, w_shape=self.quantum_w_shape,
+            q = QuantumLayer(num_qubits=quantum_dim, w_shape=self.quantum_w_shape,
                              circuit=self.quantum_circuit)(q)
-            k = QuantumLayerModule(num_qubits=quantum_dim, w_shape=self.quantum_w_shape,
+            k = QuantumLayer(num_qubits=quantum_dim, w_shape=self.quantum_w_shape,
                              circuit=self.quantum_circuit)(k)
-            v = QuantumLayerModule(num_qubits=quantum_dim, w_shape=self.quantum_w_shape,
+            v = QuantumLayer(num_qubits=quantum_dim, w_shape=self.quantum_w_shape,
                              circuit=self.quantum_circuit)(v)
 
             q = nn.Dense(features=inner_dim)(q)
@@ -148,7 +144,6 @@ class WindowAttention(nn.Module):
         if self.quantum_circuit is None:
             out = nn.Dense(features=self.dim)(out)
         else:
-            QuantumLayerModule = QuantumLayerPL if self.use_pennylane else QuantumLayer
 
             out = nn.Dense(features=self.dim)(out)
 
@@ -157,7 +152,7 @@ class WindowAttention(nn.Module):
             quantum_dim = min(8, self.dim)
 
             out = out.reshape(flat_batch_size, -1)[:, :quantum_dim]
-            out = QuantumLayerModule(num_qubits=quantum_dim, w_shape=self.quantum_w_shape,
+            out = QuantumLayer(num_qubits=quantum_dim, w_shape=self.quantum_w_shape,
                                circuit=self.quantum_circuit)(out)
 
             out = nn.Dense(features=self.dim)(out)

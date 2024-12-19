@@ -18,11 +18,11 @@ TQDM_BAR_FORMAT = '{l_bar}{bar:10}{r_bar}{bar:-10b}'
 
 class TrainState(flax.training.train_state.TrainState):
     # See https://flax.readthedocs.io/en/latest/guides/dropout.html.
-    key: jax.Array  # type: ignore
+    key: jax.random.PRNGKey  # type: ignore
 
 
 @jax.jit
-def train_step(state: TrainState, inputs: jax.Array, labels: jax.Array, key: jax.Array) -> TrainState:
+def train_step(state: TrainState, inputs: jax.Array, labels: jax.Array, key: jax.random.PRNGKey) -> TrainState:
     """
     Performs a single training step on the given batch of inputs and labels.
 

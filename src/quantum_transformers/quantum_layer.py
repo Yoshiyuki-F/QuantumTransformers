@@ -1,11 +1,11 @@
 from typing import Callable
-
 import tensorcircuit as tc
 import jax.numpy as jnp
 import flax.linen
+import logging
+logging.basicConfig(level=logging.INFO)  # ログレベルを設定
 
 K = tc.set_backend("jax")
-
 
 def angle_embedding(c: tc.Circuit, inputs):
     num_qubits = inputs.shape[-1]
@@ -47,7 +47,7 @@ def get_quantum_layer_circuit(inputs, weights,
 
 
 def get_circuit(embedding: Callable = angle_embedding, vqc: Callable = basic_vqc,
-                torch_interface: bool = False, num_qubits:int = 0):
+                torch_interface: bool = False):
     def qpred(inputs, weights):
         c = get_quantum_layer_circuit(inputs, weights, embedding, vqc)
         return K.real(jnp.array([c.expectation_ps(z=[i]) for i in range(weights.shape[1])]))
@@ -69,7 +69,9 @@ class QuantumLayer(flax.linen.Module):
         shape = x.shape
         x = jnp.reshape(x, (-1, shape[-1]))
         w = self.param('w', flax.linen.initializers.xavier_normal(), self.w_shape + (self.num_qubits,))
+        # logging.info(f"QuantumLayer: Input to circuit: {type(x), type(w)}")
         x = self.circuit(x, w)
+        logging.info(f"QuantumLayer: Output from circuit: {type(x)}")
         x = jnp.concatenate(x, axis=-1)
         x = jnp.reshape(x, tuple(shape))
         return x

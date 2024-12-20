@@ -27,7 +27,9 @@ def get_quantum_layer_circuit(dev, num_qubits):
     def circuit(inputs, weights):
         angle_embedding(inputs, num_qubits)
         basic_vqc(weights, num_qubits)
+        # return jnp.real(jnp.array([qml.expval(qml.PauliZ(i)) for i in range(num_qubits)]))
         return [qml.expval(qml.PauliZ(i)) for i in range(num_qubits)]
+
     return circuit
 
 
@@ -39,7 +41,7 @@ def get_circuit():
         circuit = get_quantum_layer_circuit(dev, num_qubits)
         batched_circuit = jax.vmap(circuit, in_axes=(0, None))
 
-        return batched_circuit(inputs, weights)
+        return jnp.swapaxes(jnp.array(batched_circuit(inputs, weights)), 0, 1)
 
     return qpred
 

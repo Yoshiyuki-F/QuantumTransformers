@@ -3,7 +3,7 @@ import tensorcircuit as tc
 import jax.numpy as jnp
 import flax.linen
 import logging
-logging.basicConfig(level=logging.INFO)  # ログレベルを設定
+# logging.basicConfig(level=logging.INFO)  # ログレベルを設定
 
 K = tc.set_backend("jax")
 
@@ -50,8 +50,8 @@ def get_circuit(embedding: Callable = angle_embedding, vqc: Callable = basic_vqc
                 torch_interface: bool = False):
     def qpred(inputs, weights):
         c = get_quantum_layer_circuit(inputs, weights, embedding, vqc)
-        return K.real(jnp.array([c.expectation_ps(z=[i]) for i in range(weights.shape[1])]))
-
+        # return K.real(jnp.array([c.expectation_ps(z=[i]) for i in range(weights.shape[1])]))
+        return jnp.real(jnp.array([c.expectation_ps(z=[i]) for i in range(weights.shape[1])]))
     qpred_batch = K.vmap(qpred, vectorized_argnums=0)
     if torch_interface:
         qpred_batch = tc.interfaces.torch_interface(qpred_batch, jit=True)

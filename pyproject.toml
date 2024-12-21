@@ -8,8 +8,8 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.11,<3.12"
 
-jax ={ version = "*", extras = ["nocuda"], source = "jax_releases" }
-jaxlib ={ version = "*", extras = ["nocuda"], source = "jax_releases" }
+jax ={ version = "0.4.23", extras = ["nocuda"], source = "jax_releases" }
+jaxlib ={ version = "0.4.23", extras = ["nocuda"], source = "jax_releases" }
 #jaxlib = { url = "https://storage.googleapis.com/jax-releases/nocuda/jaxlib-0.4.36-cp311-cp311-manylinux2014_x86_64.whl" }
 ray = { version = "*", extras = ["tune"] } #latest
 flax = "*"#latest

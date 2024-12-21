@@ -37,7 +37,7 @@ def get_circuit():
     def qpred(inputs, weights):
         inputs = preprocess_inputs(inputs)
         num_qubits = inputs.shape[-1]
-        dev = qml.device("lightning.gpu", wires=num_qubits)
+        dev = qml.device("default.qubit", wires=num_qubits)
         circuit = get_quantum_layer_circuit(dev, num_qubits)
         batched_circuit = jax.vmap(circuit, in_axes=(0, None))
 

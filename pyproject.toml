@@ -15,10 +15,10 @@ ray = { version = "*", extras = ["tune"] } #latest
 flax = "*"#latest
 
 numpy = "<2" #warning
-scipy = "<1.13" #dependency on numpy
+scipy = "<1" #dependency on numpy
 
 #https://www.tensorflow.org/install/source
-tensorflow = "*" #latest tensorflow-2.18.0 requires py 3.9-3.12	Clang 17.0.6	Bazel 6.5.0	cudnn9.3 cuda12.5
+tensorflow = "2.18.0" #latest tensorflow-2.18.0 requires py 3.9-3.12	Clang 17.0.6	Bazel 6.5.0	cudnn9.3 cuda12.5
 tensorflow-text = "*" #==tensorflow
 tensorcircuit = "*" #latest
 tensorflow-datasets =  "*" #latest

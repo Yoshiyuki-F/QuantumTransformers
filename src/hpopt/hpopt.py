@@ -106,19 +106,22 @@ if __name__ == '__main__':
                            choices=vision_datasets + text_datasets)
     argparser.add_argument('--quantum', action='store_true', help='whether to use quantum transformers')
     argparser.add_argument('--swin', action='store_true', help='whether to use Swin Transformer for training')
-    argparser.add_argument('--trials', type=int, default=10, help='number of trials to run')
+    argparser.add_argument('--trials', type=int, default=1, help='number of trials to run')
+    argparser.add_argument('--epoches', type=int, default=30, help='number of epoches to run')
+    argparser.add_argument('--seed', type=int, default=42, help='seed')
+    argparser.add_argument('--core', type=int, default=224, help='number of cpu cores')
     argparser.add_argument('--pl', action='store_true', help='whether to use pennylane')
     args, unknown = argparser.parse_known_args()
     print(f"args = {args}, unknown = {unknown}")
 
     param_space = {
-        'seed': 42,
+        'seed': args.seed,
         'data_dir': tune.choice(['~/.tensorflow_datasets']),
         'dataset': args.dataset,
         'quantum': args.quantum,
         'swin': args.swin,  # Add swin parameter to config
         'pl': args.pl,
-        'num_epochs': 10,
+        'num_epochs': args.epoches,
         'batch_size': tune.choice([32]),
         'hidden_size': tune.choice([8]),
         'num_heads': tune.choice([1, 2]),
@@ -146,7 +149,7 @@ if __name__ == '__main__':
 
     ray.init()
 
-    resources_per_trial = {"cpu": 224, "gpu": 0}
+    resources_per_trial = {"cpu": args.core, "gpu": 0}
     tuner = tune.Tuner(
         tune.with_resources(train, resources=resources_per_trial),
         tune_config=tune.TuneConfig(

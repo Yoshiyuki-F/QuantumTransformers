@@ -14,7 +14,7 @@ jaxlib = { url = "https://storage.googleapis.com/jax-releases/nocuda/jaxlib-0.4.
 #https://jax.readthedocs.io/en/latest/changelog.html#jax-0-4-24-feb-6-2024
 scipy = "<1.13" #jax@0.4.23 uses tril https://docs.scipy.org/doc/scipy-1.12.0/reference/generated/scipy.linalg.tril.html
 numpy = "<2" #warning
-torch = { url = "https://download.pytorch.org/whl/torch/torch-2.3.0+cpu-cp311-cp311-linux_x86_64.whl" } #{ version = "2.3.0", extra = "cpu" }
+torch = { url = "https://download.pytorch.org/whl/cpu/torch-2.3.0%2Bcpu-cp311-cp311-linux_x86_64.whl#sha256=97a38b25ee0e3d020691e7846efbca62a3d8a57645c027dcb5ba0adfec36fe55" } #{ version = "2.3.0", extra = "cpu" }
 #nvidia-cublas-cu12,nvidia-cusparse-cu12 doenst work with cuda124..? necessary for jax
 
 ray = {extras = ["tune"], version = "*"} #latest

@@ -8,13 +8,13 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.11,<3.12"
 
+jax = "0.4.23"
 jaxlib = { url = "https://storage.googleapis.com/jax-releases/nocuda/jaxlib-0.4.23-cp311-cp311-manylinux2014_x86_64.whl" }
 #Jax.core.conretearray is removed after 0.4.24 which is used in pennylane
 #https://jax.readthedocs.io/en/latest/changelog.html#jax-0-4-24-feb-6-2024
-jax = "0.4.23"
 scipy = "<1.13" #jax@0.4.23 uses tril https://docs.scipy.org/doc/scipy-1.12.0/reference/generated/scipy.linalg.tril.html
 numpy = "<2" #warning
-torch = { version = "2.3.0", extra = "cpu" }
+torch = "2.3.0" #{ version = "2.3.0", extra = "cpu" }
 #nvidia-cublas-cu12,nvidia-cusparse-cu12 doenst work with cuda124..? necessary for jax
 
 ray = {extras = ["tune"], version = "*"} #latest

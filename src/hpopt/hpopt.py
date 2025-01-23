@@ -146,7 +146,7 @@ if __name__ == '__main__':
 
     ray.init()
 
-    resources_per_trial = {"cpu": 224, "gpu": 0}
+    resources_per_trial =  {"cpu": 10, "gpu": 0}#{"cpu": 224, "gpu": 0}
     tuner = tune.Tuner(
         tune.with_resources(train, resources=resources_per_trial),
         tune_config=tune.TuneConfig(

@@ -109,7 +109,7 @@ if __name__ == '__main__':
     argparser.add_argument('--trials', type=int, default=1, help='number of trials to run')
     argparser.add_argument('--epoches', type=int, default=30, help='number of epoches to run')
     argparser.add_argument('--seed', type=int, default=42, help='seed')
-    argparser.add_argument('--core', type=int, default=224, help='number of cpu cores')
+    argparser.add_argument('--cores', type=int, default=224, help='number of cpu cores')
     argparser.add_argument('--pl', action='store_true', help='whether to use pennylane')
     args, unknown = argparser.parse_known_args()
     print(f"args = {args}, unknown = {unknown}")

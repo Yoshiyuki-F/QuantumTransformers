@@ -8,8 +8,8 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.11,<3.12"
 
-jax-cuda12-plugin = { url = "https://storage.googleapis.com/jax-releases/cuda11_plugin/jax_cuda11_plugin-0.4.23-cp311-cp311-manylinux2014_x86_64.whl" }
-jax-cuda12-pjrt= { url = "https://storage.googleapis.com/jax-releases/cuda11_plugin/jax_cuda11_pjrt-0.4.23-py3-none-manylinux2014_x86_64.whl" }
+jax-cuda11-plugin = { url = "https://storage.googleapis.com/jax-releases/cuda11_plugin/jax_cuda11_plugin-0.4.23-cp311-cp311-manylinux2014_x86_64.whl" }
+jax-cuda11-pjrt= { url = "https://storage.googleapis.com/jax-releases/cuda11_plugin/jax_cuda11_pjrt-0.4.23-py3-none-manylinux2014_x86_64.whl" }
 jax = "0.4.23"#Jax.core.conretearray is removed after 0.4.24 which is used in pennylane
 #https://jax.readthedocs.io/en/latest/changelog.html#jax-0-4-24-feb-6-2024
 jaxlib = "0.4.23"

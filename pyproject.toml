@@ -13,7 +13,8 @@ jax-cuda12-pjrt= { url = "https://storage.googleapis.com/jax-releases/cuda12_plu
 jax = "0.4.23"#Jax.core.conretearray is removed after 0.4.24 which is used in pennylane
 #https://jax.readthedocs.io/en/latest/changelog.html#jax-0-4-24-feb-6-2024
 jaxlib = "0.4.23"
-scipy = "<1.13" #jax@0.4.23 uses tril https://docs.scipy.org/doc/scipy-1.12.0/reference/generated/scipy.linalg.tril.html
+scipy = "<1.13"
+#jax@0.4.23 uses tril https://docs.scipy.org/doc/scipy-1.12.0/reference/generated/scipy.linalg.tril.html
 numpy = "<2" #warning
 torch = { version = "2.3.0", source = "torch_cuda121" }
 #nvidia-cublas-cu12,nvidia-cusparse-cu12 doenst work with cuda124..? necessary for jax
@@ -49,6 +50,8 @@ einops = "*"
 cuquantum-python = "^24.11.0"
 cupy-cuda12x = "^13.3.0"
 
+seaborn = "^0.13.2"
+tabulate = "^0.9.0"
 
 [[tool.poetry.source]]
 name = "torch_cuda121"

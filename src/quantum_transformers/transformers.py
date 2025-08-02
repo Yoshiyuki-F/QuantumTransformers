@@ -2,13 +2,12 @@ from typing import Literal, Callable, Optional
 import flax.linen as nn
 import jax.numpy as jnp
 
-from quantum_transformers.quantum_layer import QuantumLayer
+from src.quantum_transformers.quantum_layer import QuantumLayer
 
 # See:
 # - https://nlp.seas.harvard.edu/annotated-transformer/
 # - https://github.com/rdisipio/qtransformer/blob/main/qtransformer.py
 # - https://github.com/google-research/vision_transformer/blob/main/vit_jax/models_vit.py
-
 
 class MultiHeadSelfAttention(nn.Module):
     hidden_size: int
@@ -17,6 +16,7 @@ class MultiHeadSelfAttention(nn.Module):
 
     quantum_w_shape: tuple = (1,)
     quantum_circuit: Optional[Callable] = None
+    use_pennylane: bool = False
 
     @nn.compact
     def __call__(self, x, deterministic):
@@ -53,6 +53,7 @@ class MultiHeadSelfAttention(nn.Module):
         # values.shape = (batch_size, num_heads, seq_len, head_dim)
         values = values.swapaxes(1, 2).reshape(batch_size, seq_len, hidden_size)
         # values.shape = (batch_size, seq_len, hidden_size)
+
         if self.quantum_circuit is None:
             x = nn.Dense(features=hidden_size)(values)
         else:
@@ -61,7 +62,6 @@ class MultiHeadSelfAttention(nn.Module):
 
         return x
 
-
 class FeedForward(nn.Module):
     hidden_size: int
     mlp_hidden_size: int
@@ -69,6 +69,7 @@ class FeedForward(nn.Module):
 
     quantum_w_shape: tuple = (1,)
     quantum_circuit: Optional[Callable] = None
+    use_pennylane: bool = False
 
     @nn.compact
     def __call__(self, x, deterministic):
@@ -80,7 +81,6 @@ class FeedForward(nn.Module):
         x = nn.Dense(features=self.hidden_size)(x)
         return x
 
-
 class TransformerBlock(nn.Module):
     hidden_size: int
     num_heads: int
@@ -90,22 +90,22 @@ class TransformerBlock(nn.Module):
     quantum_w_shape: tuple = (1,)
     quantum_attn_circuit: Optional[Callable] = None
     quantum_mlp_circuit: Optional[Callable] = None
+    use_pennylane: bool = False
 
     @nn.compact
     def __call__(self, x, deterministic):
         attn_output = nn.LayerNorm()(x)
         attn_output = MultiHeadSelfAttention(hidden_size=self.hidden_size, num_heads=self.num_heads, dropout=self.dropout,
-                                             quantum_circuit=self.quantum_attn_circuit)(attn_output, deterministic=deterministic)
+                                             quantum_circuit=self.quantum_attn_circuit, use_pennylane=self.use_pennylane)(attn_output, deterministic=deterministic)
         attn_output = nn.Dropout(rate=self.dropout)(attn_output, deterministic=deterministic)
         x = x + attn_output
 
         y = nn.LayerNorm()(x)
         y = FeedForward(hidden_size=self.hidden_size, mlp_hidden_size=self.mlp_hidden_size,
-                        quantum_circuit=self.quantum_mlp_circuit)(y, deterministic=deterministic)
+                        quantum_circuit=self.quantum_mlp_circuit, use_pennylane=self.use_pennylane)(y, deterministic=deterministic)
         y = nn.Dropout(rate=self.dropout)(y, deterministic=deterministic)
 
         return x + y
-
 
 class Transformer(nn.Module):
     num_tokens: int
@@ -120,6 +120,7 @@ class Transformer(nn.Module):
     quantum_w_shape: tuple = (1,)
     quantum_attn_circuit: Optional[Callable] = None
     quantum_mlp_circuit: Optional[Callable] = None
+    use_pennylane: bool = False
 
     @nn.compact
     def __call__(self, x, train):
@@ -141,7 +142,8 @@ class Transformer(nn.Module):
                 mlp_hidden_size=self.mlp_hidden_size,
                 dropout=self.dropout,
                 quantum_attn_circuit=self.quantum_attn_circuit,
-                quantum_mlp_circuit=self.quantum_mlp_circuit
+                quantum_mlp_circuit=self.quantum_mlp_circuit,
+                use_pennylane=self.use_pennylane
             )(x, deterministic=not train)
 
         # Layer normalization
@@ -157,7 +159,6 @@ class Transformer(nn.Module):
 
         return x
 
-
 def posemb_sincos_2d(sqrt_num_steps, hidden_size, temperature=10_000., dtype=jnp.float32):
     """2D sin-cos position embedding. Follows the MoCo v3 logic."""
     # Code adapted from https://github.com/google-research/big_vision/blob/184d1201eb34abe7da84fc69f84fd89a06ad43c4/big_vision/models/vit.py#L33.
@@ -170,7 +171,6 @@ def posemb_sincos_2d(sqrt_num_steps, hidden_size, temperature=10_000., dtype=jnp
     x = jnp.einsum("m,d->md", x.flatten(), omega)
     pe = jnp.concatenate([jnp.sin(x), jnp.cos(x), jnp.sin(y), jnp.cos(y)], axis=1)
     return jnp.asarray(pe, dtype)[None, :, :]
-
 
 class VisionTransformer(nn.Module):
     num_classes: int
@@ -187,6 +187,7 @@ class VisionTransformer(nn.Module):
     quantum_w_shape: tuple = (1,)
     quantum_attn_circuit: Optional[Callable] = None
     quantum_mlp_circuit: Optional[Callable] = None
+    use_pennylane: bool = False
 
     @nn.compact
     def __call__(self, x, train):
@@ -248,7 +249,8 @@ class VisionTransformer(nn.Module):
                 mlp_hidden_size=self.mlp_hidden_size,
                 dropout=self.dropout,
                 quantum_attn_circuit=self.quantum_attn_circuit,
-                quantum_mlp_circuit=self.quantum_mlp_circuit
+                quantum_mlp_circuit=self.quantum_mlp_circuit,
+                use_pennylane=self.use_pennylane
             )(x, deterministic=not train)
 
         # Layer normalization

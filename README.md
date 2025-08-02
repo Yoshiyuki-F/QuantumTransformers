@@ -1,4 +1,4 @@
-# Quantum Transformers
+# Quantum Swin Transformers
 
 **Master Project**
 

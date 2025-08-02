@@ -10,18 +10,19 @@ import optax
 from sklearn.metrics import roc_auc_score, roc_curve, auc
 from tqdm import tqdm
 import tensorflow as tf
-
+import os
+import datetime
 
 TQDM_BAR_FORMAT = '{l_bar}{bar:10}{r_bar}{bar:-10b}'
 
 
 class TrainState(flax.training.train_state.TrainState):
     # See https://flax.readthedocs.io/en/latest/guides/dropout.html.
-    key: jax.Array  # type: ignore
+    key: jax.random.PRNGKey  # type: ignore
 
 
 @jax.jit
-def train_step(state: TrainState, inputs: jax.Array, labels: jax.Array, key: jax.Array) -> TrainState:
+def train_step(state: TrainState, inputs: jax.Array, labels: jax.Array, key: jax.random.PRNGKey) -> TrainState:
     """
     Performs a single training step on the given batch of inputs and labels.
 
@@ -40,8 +41,8 @@ def train_step(state: TrainState, inputs: jax.Array, labels: jax.Array, key: jax
     def loss_fn(params):
         logits = state.apply_fn(
             {'params': params},
-            x=inputs,
-            train=True,
+            inputs,
+            train=False,
             rngs={'dropout': dropout_train_key}
         )
         if logits.shape[1] <= 2:
@@ -74,7 +75,7 @@ def eval_step(state: TrainState, inputs: jax.Array, labels: jax.Array) -> tuple[
     """
     logits = state.apply_fn(
         {'params': state.params},
-        x=inputs,
+        inputs,
         train=False,
         rngs={'dropout': state.key}
     )
@@ -88,7 +89,8 @@ def eval_step(state: TrainState, inputs: jax.Array, labels: jax.Array) -> tuple[
 
 
 def evaluate(state: TrainState, eval_dataloader, num_classes: int,
-             tqdm_desc: Optional[str] = None, debug: bool = False) -> tuple[float, float, npt.ArrayLike, npt.ArrayLike]:
+             tqdm_desc: Optional[str] = None, debug: bool = False) -> tuple[
+    float, float, float, npt.ArrayLike, npt.ArrayLike]:
     """
     Evaluates the model given the current training state on the given dataloader.
 
@@ -102,19 +104,38 @@ def evaluate(state: TrainState, eval_dataloader, num_classes: int,
     Returns:
         eval_loss: The loss.
         eval_auc: The AUC.
+        eval_accuracy: The accuracy.
+        eval_fpr: False positive rate.
+        eval_tpr: True positive rate.
     """
     logits, labels = [], []
     eval_loss = 0.0
-    with tqdm(total=len(eval_dataloader), desc=tqdm_desc, unit="batch", bar_format=TQDM_BAR_FORMAT, disable=tqdm_desc is None) as progress_bar:
+    correct = 0
+    total = 0
+
+    with tqdm(total=len(eval_dataloader), desc=tqdm_desc, unit="batch", bar_format=TQDM_BAR_FORMAT,
+              disable=tqdm_desc is None) as progress_bar:
         for inputs_batch, labels_batch in eval_dataloader:
             loss_batch, logits_batch = eval_step(state, inputs_batch, labels_batch)
             logits.append(logits_batch)
             labels.append(labels_batch)
             eval_loss += loss_batch
+
+            # accuracy
+            if num_classes == 2:
+                predictions = (jax.nn.sigmoid(logits_batch) > 0.5).astype(int)
+            else:
+                predictions = jnp.argmax(logits_batch, axis=1)
+            correct += jnp.sum(predictions == labels_batch)
+            total += len(labels_batch)
+
             progress_bar.update(1)
+
         eval_loss /= len(eval_dataloader)
-        logits = jnp.concatenate(logits)  # type: ignore
-        y_true = jnp.concatenate(labels)  # type: ignore
+        eval_accuracy = float(correct) / total
+        logits = jnp.concatenate(logits)
+        y_true = jnp.concatenate(labels)
+
         if debug:
             print(f"logits = {logits}")
         if num_classes == 2:
@@ -130,20 +151,27 @@ def evaluate(state: TrainState, eval_dataloader, num_classes: int,
         else:
             eval_fpr, eval_tpr = [], []
             eval_auc = roc_auc_score(y_true, y_pred, multi_class='ovr')
-        progress_bar.set_postfix_str(f"Loss = {eval_loss:.4f}, AUC = {eval_auc:.3f}")
-    return eval_loss, eval_auc, eval_fpr, eval_tpr
+        progress_bar.set_postfix_str(f"Loss = {eval_loss:.4f}, AUC = {eval_auc:.3f}, Acc = {eval_accuracy:.3f}")
+    return eval_loss, eval_auc, eval_accuracy, eval_fpr, eval_tpr
 
 
 def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader, num_classes,
                        num_epochs, lrs_peak_value=1e-3, lrs_warmup_steps=5000, lrs_decay_steps=50000,
                        seed=42, use_ray=False, debug=False):
-
     if use_ray:
         from ray.air import session
 
-    # 创建tensorboard日志写入器
-    log_dir = "log/"
+    # Create log directory
+    log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "log")
+    os.makedirs(log_dir, exist_ok=True)
+
+    # Create subdirectory with timestamp to avoid overwriting
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_dir = os.path.join(log_dir, timestamp)
+    os.makedirs(log_dir, exist_ok=True)
+
     writer = tf.summary.create_file_writer(log_dir)
+    print(f"Tensorboard logs will be saved to: {log_dir}")
 
     root_key = jax.random.PRNGKey(seed=seed)
     root_key, params_key, train_key = jax.random.split(key=root_key, num=3)
@@ -156,14 +184,12 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader,
     if jnp.issubdtype(input_dtype, jnp.floating):
         dummy_batch = jax.random.uniform(key=input_key, shape=(batch_size,) + tuple(input_shape), dtype=input_dtype)
     elif jnp.issubdtype(input_dtype, jnp.integer):
-        dummy_batch = jax.random.randint(key=input_key, shape=(batch_size,) + tuple(input_shape), minval=0, maxval=100, dtype=input_dtype)
+        dummy_batch = jax.random.randint(key=input_key, shape=(batch_size,) + tuple(input_shape), minval=0, maxval=100,
+                                         dtype=input_dtype)
     else:
         raise ValueError(f"Unsupported dtype {input_dtype}")
 
     variables = model.init(params_key, dummy_batch, train=False)
-
-    if debug:
-        print(jax.tree_map(lambda x: x.shape, variables))
     print(f"Number of parameters = {sum(x.size for x in jax.tree_util.tree_leaves(variables))}")
 
     learning_rate_schedule = optax.warmup_cosine_decay_schedule(
@@ -195,14 +221,18 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader,
         'val_losses': [],
         'train_aucs': [],
         'val_aucs': [],
+        'train_accuracies': [],
+        'val_accuracies': [],
         'test_loss': 0.0,
         'test_auc': 0.0,
+        'test_accuracy': 0.0,
         'test_fpr': [],
         'test_tpr': [],
     }
 
     for epoch in range(num_epochs):
-        with tqdm(total=len(train_dataloader), desc=f"Epoch {epoch+1:3}/{num_epochs}", unit="batch", bar_format=TQDM_BAR_FORMAT) as progress_bar:
+        with tqdm(total=len(train_dataloader), desc=f"Epoch {epoch + 1:3}/{num_epochs}", unit="batch",
+                  bar_format=TQDM_BAR_FORMAT) as progress_bar:
             epoch_train_time = time.time()
             for inputs_batch, labels_batch in train_dataloader:
                 state = train_step(state, inputs_batch, labels_batch, train_key)
@@ -210,51 +240,68 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader,
             epoch_train_time = time.time() - epoch_train_time
             total_train_time += epoch_train_time
 
-            train_loss, train_auc, _, _ = evaluate(state, train_dataloader, num_classes, tqdm_desc=None, debug=debug)
-            val_loss, val_auc, _, _ = evaluate(state, val_dataloader, num_classes, tqdm_desc=None, debug=debug)
-            progress_bar.set_postfix_str(f"Loss = {val_loss:.4f}, AUC = {val_auc:.3f}, Train time = {epoch_train_time:.2f}s")
+            train_loss, train_auc, train_acc, _, _ = evaluate(state, train_dataloader, num_classes, tqdm_desc=None,
+                                                              debug=debug)
+            val_loss, val_auc, val_acc, _, _ = evaluate(state, val_dataloader, num_classes, tqdm_desc=None, debug=debug)
+            progress_bar.set_postfix_str(
+                f"Loss = {val_loss:.4f}, AUC = {val_auc:.3f}, Acc = {val_acc:.3f}, Train time = {epoch_train_time:.2f}s")
 
-            # 使用tensorboard记录指标
             with writer.as_default():
                 tf.summary.scalar('train_loss', train_loss, step=epoch)
                 tf.summary.scalar('train_auc', train_auc, step=epoch)
+                tf.summary.scalar('train_accuracy', train_acc, step=epoch)
                 tf.summary.scalar('val_loss', val_loss, step=epoch)
                 tf.summary.scalar('val_auc', val_auc, step=epoch)
+                tf.summary.scalar('val_accuracy', val_acc, step=epoch)
 
             metrics['train_losses'].append(train_loss)
             metrics['val_losses'].append(val_loss)
             metrics['train_aucs'].append(train_auc)
             metrics['val_aucs'].append(val_auc)
+            metrics['train_accuracies'].append(train_acc)
+            metrics['val_accuracies'].append(val_acc)
             if val_auc > best_val_auc:
                 best_val_auc = val_auc
                 best_epoch = epoch + 1
                 best_state = state
             if use_ray:
-                session.report({'val_loss': val_loss, 'val_auc': val_auc, 'best_val_auc': best_val_auc, 'best_epoch': best_epoch})
+                session.report({
+                    'val_loss': val_loss,
+                    'val_auc': val_auc,
+                    'val_accuracy': val_acc,
+                    'best_val_auc': best_val_auc,
+                    'best_epoch': best_epoch
+                })
 
     metrics['train_losses'] = jnp.array(metrics['train_losses'])
     metrics['val_losses'] = jnp.array(metrics['val_losses'])
     metrics['train_aucs'] = jnp.array(metrics['train_aucs'])
     metrics['val_aucs'] = jnp.array(metrics['val_aucs'])
+    metrics['train_accuracies'] = jnp.array(metrics['train_accuracies'])
+    metrics['val_accuracies'] = jnp.array(metrics['val_accuracies'])
 
     print(f"Best validation AUC = {best_val_auc:.3f} at epoch {best_epoch}")
-    print(f"Total training time = {total_train_time:.2f}s, total time (including evaluations) = {time.time() - start_time:.2f}s")
+    print(
+        f"Total training time = {total_train_time:.2f}s, total time (including evaluations) = {time.time() - start_time:.2f}s")
 
     # Evaluate on test set using the best model
     assert best_state is not None
-    test_loss, test_auc, test_fpr, test_tpr = evaluate(best_state, test_dataloader, num_classes, tqdm_desc="Testing")
+    test_loss, test_auc, test_acc, test_fpr, test_tpr = evaluate(best_state, test_dataloader, num_classes,
+                                                                 tqdm_desc="Testing")
     metrics['test_loss'] = test_loss
     metrics['test_auc'] = test_auc
+    metrics['test_accuracy'] = test_acc
     metrics['test_fpr'] = test_fpr
     metrics['test_tpr'] = test_tpr
 
-    # 测试集指标也写入tensorboard
+    # Write test set metrics to tensorboard
     with writer.as_default():
         tf.summary.scalar('test_loss', test_loss, step=num_epochs)
         tf.summary.scalar('test_auc', test_auc, step=num_epochs)
+        tf.summary.scalar('test_accuracy', test_acc, step=num_epochs)
 
     if use_ray:
-        session.report({'test_loss': test_loss, 'test_auc': test_auc})
+        session.report({'test_loss': test_loss, 'test_auc': test_auc, 'test_accuracy': test_acc})
 
     return metrics
 

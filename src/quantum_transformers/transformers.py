@@ -102,7 +102,6 @@ class Transformer(nn.Module):
     quantum_w_shape: tuple = (1,)
     quantum_attn_circuit: Optional[Callable] = None
     quantum_mlp_circuit: Optional[Callable] = None
-    use_pennylane: bool = False
 
     @nn.compact
     def __call__(self, x, train):
@@ -168,7 +167,6 @@ class VisionTransformer(nn.Module):
     quantum_w_shape: tuple = (1,)
     quantum_attn_circuit: Optional[Callable] = None
     quantum_mlp_circuit: Optional[Callable] = None
-    use_pennylane: bool = False
 
     @nn.compact
     def __call__(self, x, train):
@@ -230,8 +228,7 @@ class VisionTransformer(nn.Module):
                 mlp_hidden_size=self.mlp_hidden_size,
                 dropout=self.dropout,
                 quantum_attn_circuit=self.quantum_attn_circuit,
-                quantum_mlp_circuit=self.quantum_mlp_circuit,
-                use_pennylane=self.use_pennylane
+                quantum_mlp_circuit=self.quantum_mlp_circuit
             )(x, deterministic=not train)
 
         # Layer normalization

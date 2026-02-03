@@ -1,5 +1,6 @@
 from typing import Optional
 import time
+import sys
 
 import numpy.typing as npt
 import jax
@@ -8,12 +9,12 @@ import flax.linen
 import flax.training.train_state
 import optax
 from sklearn.metrics import roc_auc_score, roc_curve, auc
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from torch.utils.tensorboard import SummaryWriter
 import os
 import datetime
 
-TQDM_BAR_FORMAT = '{l_bar}{bar:10}{r_bar}{bar:-10b}'
+
 
 
 class TrainState(flax.training.train_state.TrainState):
@@ -89,7 +90,7 @@ def eval_step(state: TrainState, inputs: jax.Array, labels: jax.Array) -> tuple[
 
 
 def evaluate(state: TrainState, eval_dataloader, num_classes: int,
-             tqdm_desc: Optional[str] = None, debug: bool = False) -> tuple[
+             tqdm_desc: Optional[str] = None, debug: bool = False, tqdm_cls=tqdm) -> tuple[
     float, float, float, npt.ArrayLike, npt.ArrayLike]:
     """
     Evaluates the model given the current training state on the given dataloader.
@@ -100,6 +101,7 @@ def evaluate(state: TrainState, eval_dataloader, num_classes: int,
         num_classes: The number of classes.
         tqdm_desc: The description to use for the tqdm progress bar. If None, no progress bar is shown.
         debug: Whether to print extra information for debugging.
+        tqdm_cls: The tqdm class to use for the progress bar.
 
     Returns:
         eval_loss: The loss.
@@ -113,8 +115,8 @@ def evaluate(state: TrainState, eval_dataloader, num_classes: int,
     correct = 0
     total = 0
 
-    with tqdm(total=len(eval_dataloader), desc=tqdm_desc, unit="batch", bar_format=TQDM_BAR_FORMAT,
-              disable=tqdm_desc is None) as progress_bar:
+    progress_bar = tqdm_cls(total=len(eval_dataloader), desc=tqdm_desc, disable=tqdm_desc is None)
+    try:
         for inputs_batch, labels_batch in eval_dataloader:
             loss_batch, logits_batch = eval_step(state, inputs_batch, labels_batch)
             logits.append(logits_batch)
@@ -152,6 +154,8 @@ def evaluate(state: TrainState, eval_dataloader, num_classes: int,
             eval_fpr, eval_tpr = [], []
             eval_auc = roc_auc_score(y_true, y_pred, multi_class='ovr')
         progress_bar.set_postfix_str(f"Loss = {eval_loss:.4f}, AUC = {eval_auc:.3f}, Acc = {eval_accuracy:.3f}")
+    finally:
+        progress_bar.close()
     return eval_loss, eval_auc, eval_accuracy, eval_fpr, eval_tpr
 
 
@@ -160,6 +164,10 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader,
                        seed=42, use_ray=False, debug=False):
     if use_ray:
         from ray.air import session
+        from ray.experimental.tqdm_ray import tqdm as tqdm_ray
+        tqdm_cls = tqdm_ray
+    else:
+        tqdm_cls = tqdm
 
     # Create log directory
     log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "log")
@@ -231,8 +239,8 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader,
     }
 
     for epoch in range(num_epochs):
-        with tqdm(total=len(train_dataloader), desc=f"Epoch {epoch + 1:3}/{num_epochs}", unit="batch",
-                  bar_format=TQDM_BAR_FORMAT) as progress_bar:
+        progress_bar = tqdm_cls(total=len(train_dataloader), desc=f"Epoch {epoch + 1:3}/{num_epochs}")
+        try:
             epoch_train_time = time.time()
             for inputs_batch, labels_batch in train_dataloader:
                 state = train_step(state, inputs_batch, labels_batch, train_key)
@@ -241,36 +249,38 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader,
             total_train_time += epoch_train_time
 
             train_loss, train_auc, train_acc, _, _ = evaluate(state, train_dataloader, num_classes, tqdm_desc=None,
-                                                              debug=debug)
-            val_loss, val_auc, val_acc, _, _ = evaluate(state, val_dataloader, num_classes, tqdm_desc=None, debug=debug)
+                                                              debug=debug, tqdm_cls=tqdm_cls)
+            val_loss, val_auc, val_acc, _, _ = evaluate(state, val_dataloader, num_classes, tqdm_desc=None, debug=debug, tqdm_cls=tqdm_cls)
             progress_bar.set_postfix_str(
                 f"Loss = {val_loss:.4f}, AUC = {val_auc:.3f}, Acc = {val_acc:.3f}, Train time = {epoch_train_time:.2f}s")
+        finally:
+            progress_bar.close()
 
-            writer.add_scalar('train_loss', train_loss, epoch)
-            writer.add_scalar('train_auc', train_auc, epoch)
-            writer.add_scalar('train_accuracy', train_acc, epoch)
-            writer.add_scalar('val_loss', val_loss, epoch)
-            writer.add_scalar('val_auc', val_auc, epoch)
-            writer.add_scalar('val_accuracy', val_acc, epoch)
+        writer.add_scalar('train_loss', float(train_loss), epoch)
+        writer.add_scalar('train_auc', float(train_auc), epoch)
+        writer.add_scalar('train_accuracy', float(train_acc), epoch)
+        writer.add_scalar('val_loss', float(val_loss), epoch)
+        writer.add_scalar('val_auc', float(val_auc), epoch)
+        writer.add_scalar('val_accuracy', float(val_acc), epoch)
 
-            metrics['train_losses'].append(train_loss)
-            metrics['val_losses'].append(val_loss)
-            metrics['train_aucs'].append(train_auc)
-            metrics['val_aucs'].append(val_auc)
-            metrics['train_accuracies'].append(train_acc)
-            metrics['val_accuracies'].append(val_acc)
-            if val_auc > best_val_auc:
-                best_val_auc = val_auc
-                best_epoch = epoch + 1
-                best_state = state
-            if use_ray:
-                session.report({
-                    'val_loss': val_loss,
-                    'val_auc': val_auc,
-                    'val_accuracy': val_acc,
-                    'best_val_auc': best_val_auc,
-                    'best_epoch': best_epoch
-                })
+        metrics['train_losses'].append(train_loss)
+        metrics['val_losses'].append(val_loss)
+        metrics['train_aucs'].append(train_auc)
+        metrics['val_aucs'].append(val_auc)
+        metrics['train_accuracies'].append(train_acc)
+        metrics['val_accuracies'].append(val_acc)
+        if val_auc > best_val_auc:
+            best_val_auc = val_auc
+            best_epoch = epoch + 1
+            best_state = state
+        if use_ray:
+            session.report({
+                'val_loss': val_loss,
+                'val_auc': val_auc,
+                'val_accuracy': val_acc,
+                'best_val_auc': best_val_auc,
+                'best_epoch': best_epoch
+            })
 
     metrics['train_losses'] = jnp.array(metrics['train_losses'])
     metrics['val_losses'] = jnp.array(metrics['val_losses'])
@@ -286,7 +296,7 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader,
     # Evaluate on test set using the best model
     assert best_state is not None
     test_loss, test_auc, test_acc, test_fpr, test_tpr = evaluate(best_state, test_dataloader, num_classes,
-                                                                 tqdm_desc="Testing")
+                                                                 tqdm_desc="Testing", tqdm_cls=tqdm_cls)
     metrics['test_loss'] = test_loss
     metrics['test_auc'] = test_auc
     metrics['test_accuracy'] = test_acc
@@ -295,9 +305,9 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader,
 
     # Write test set metrics to tensorboard
     # Write test set metrics to tensorboard
-    writer.add_scalar('test_loss', test_loss, num_epochs)
-    writer.add_scalar('test_auc', test_auc, num_epochs)
-    writer.add_scalar('test_accuracy', test_acc, num_epochs)
+    writer.add_scalar('test_loss', float(test_loss), num_epochs)
+    writer.add_scalar('test_auc', float(test_auc), num_epochs)
+    writer.add_scalar('test_accuracy', float(test_acc), num_epochs)
     writer.close()
 
     if use_ray:

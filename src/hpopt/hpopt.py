@@ -1,9 +1,16 @@
 """Hyperparameter optimization with Ray Tune."""
 
 import argparse
+import os
+
+# Fix Ray FutureWarning about accelerator env vars on 0 GPUs.
+# This must be set before 'import ray' or before 'ray.init' depending on when it's read, but environment variables are best set early.
+os.environ["RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO"] = "0"
+# Silence Ray V2 migration warnings
+os.environ["RAY_TRAIN_ENABLE_V2_MIGRATION_WARNINGS"] = "0"
 
 import ray
-from ray import tune, air
+from ray import tune
 import jax
 
 
@@ -155,14 +162,14 @@ if __name__ == '__main__':
              # JAX raises RuntimeError if 'gpu' backend is not found
              raise RuntimeError(f"No GPU found! ({e}). Use --force-cpu to run on CPU.")
 
-    resources_per_trial = {"cpu": 16, "gpu": num_gpus_per_trial}
+    resources_per_trial = {"cpu": 4, "gpu": num_gpus_per_trial}
     tuner = tune.Tuner(
         tune.with_resources(train, resources=resources_per_trial),
         tune_config=tune.TuneConfig(
             scheduler=tune.schedulers.ASHAScheduler(metric="val_auc", mode="max", max_t=param_space['num_epochs']),
             num_samples=args.trials,
         ),
-        run_config=air.RunConfig(),
+        run_config=tune.RunConfig(),
         param_space=param_space,
     )
     results = tuner.fit()

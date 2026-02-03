@@ -108,7 +108,6 @@ class SwinBlock(nn.Module):
     quantum_w_shape: tuple = (1,)
     quantum_attn_circuit: Optional[Callable] = None
     quantum_mlp_circuit: Optional[Callable] = None
-    quantum_mlp_circuit: Optional[Callable] = None
 
     @nn.compact
     def __call__(self, x, deterministic=True):
@@ -174,7 +173,6 @@ class StageModule(nn.Module):
     quantum_w_shape: tuple = (1,)
     quantum_attn_circuit: Optional[Callable] = None
     quantum_mlp_circuit: Optional[Callable] = None
-    quantum_mlp_circuit: Optional[Callable] = None
 
     @nn.compact
     def __call__(self, x, deterministic=True):
@@ -199,8 +197,7 @@ class StageModule(nn.Module):
                     relative_pos_embedding=self.relative_pos_embedding,
                     quantum_w_shape=self.quantum_w_shape,
                     quantum_attn_circuit=self.quantum_attn_circuit,
-                    quantum_mlp_circuit=self.quantum_mlp_circuit,
-                    use_pennylane=self.use_pennylane
+                    quantum_mlp_circuit=self.quantum_mlp_circuit
                 ),
                 SwinBlock(
                     dim=self.hidden_dimension,
@@ -212,8 +209,7 @@ class StageModule(nn.Module):
                     relative_pos_embedding=self.relative_pos_embedding,
                     quantum_w_shape=self.quantum_w_shape,
                     quantum_attn_circuit=self.quantum_attn_circuit,
-                    quantum_mlp_circuit=self.quantum_mlp_circuit,
-                    use_pennylane=self.use_pennylane
+                    quantum_mlp_circuit=self.quantum_mlp_circuit
                 )
             ])
 
@@ -234,7 +230,6 @@ class SwinTransformer(nn.Module):
     relative_pos_embedding: bool
     quantum_w_shape: tuple = (1,)
     quantum_attn_circuit: Optional[Callable] = None
-    quantum_mlp_circuit: Optional[Callable] = None
     quantum_mlp_circuit: Optional[Callable] = None
 
     @nn.compact

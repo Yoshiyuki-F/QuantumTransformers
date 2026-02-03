@@ -10,30 +10,33 @@ dependencies = [
     "flax>=0.12.2",
     "optax>=0.2.6",
     "einops>=0.8.2",
-
-    # PyTorch & Data Loading
-    "torch>=2.8.0",
-    "torchvision>=0.23.0",
+    # Data & Tokenizers
     "transformers>=5.0.0",
     "datasets>=4.5.0",
     "gdown>=5.2.1",
-
     # Utilities & Evaluation
     "scikit-learn>=1.8.0",
     "ray[tune]>=2.53.0",
     "tqdm>=4.67.3",
-
-    # Visualization
+    # Visualization (PyTorch CPU for TensorBoard only)
+    "torch",
+    "torchvision",
     "matplotlib>=3.10.8",
     "seaborn>=0.13.2",
-
+    "tensorboard>=2.20.0",
     # Development & Notebooks
     "jupyterlab>=4.5.3",
     "ipykernel>=7.1.0",
-
     # Quantum
     "tensorcircuit-ng[jax]",
 ]
 
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.uv.sources]
 tensorcircuit-ng = { git = "https://github.com/tensorcircuit/tensorcircuit-ng.git" }
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }

@@ -113,20 +113,25 @@ if __name__ == '__main__':
 
     param_space = {
         'seed': 42,
-        'data_dir': tune.choice(['~/.tensorflow_datasets']),
+        'data_dir': tune.choice(['~/data']),
         'dataset': args.dataset,
         'quantum': args.quantum,
         'swin': args.swin,  # Add swin parameter to config
-        'num_epochs': 10,
-        'batch_size': tune.choice([32]),
-        'hidden_size': tune.choice([8]),
-        'num_heads': tune.choice([1, 2]),
-        'num_transformer_blocks': tune.choice([1, 2]),
-        'mlp_hidden_size': tune.choice([4]),
-        'dropout': tune.uniform(0.0, 0.5),
-        'lrs_peak_value': tune.loguniform(1e-5, 1),
-        'lrs_warmup_steps': tune.choice([0, 1000, 5000, 10000]),
-        'lrs_decay_steps': tune.choice([50000, 100000, 500000, 1000000]),
+        'num_epochs': 1,
+
+        'batch_size': tune.choice([64, 128, 256]),
+        'hidden_size': tune.choice([32, 64, 96]),
+        'mlp_hidden_size': tune.choice([128, 256, 384]),
+
+        'num_heads': tune.choice([2, 4]), # hidden_sizeを割り切れる数であることに注意
+        'num_transformer_blocks': tune.choice([2, 4, 6]), # 層を深くする
+
+        'dropout': tune.uniform(0.0, 0.3),
+
+        'lrs_peak_value': tune.loguniform(1e-4, 5e-3),
+        # 総ステップ数が数千(例: 4680)になるため、それに合わせる
+        'lrs_warmup_steps': tune.choice([100, 500]),
+        'lrs_decay_steps': tune.choice([2000, 5000, 10000]),
     }
 
     if args.dataset in text_datasets:

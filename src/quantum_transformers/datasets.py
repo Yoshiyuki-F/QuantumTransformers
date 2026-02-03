@@ -101,7 +101,7 @@ def datasets_to_dataloaders(train_dataset, val_dataset, test_dataset, batch_size
         'drop_last': drop_remainder,
         'collate_fn': collate_fn,
         'num_workers': 0, # Simplify for now, can increase
-        'pin_memory': True
+        'pin_memory': torch.cuda.is_available()
     }
     
     train_loader = DataLoader(train_dataset, shuffle=True, **loader_kwargs)

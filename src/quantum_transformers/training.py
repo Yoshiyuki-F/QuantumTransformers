@@ -157,7 +157,8 @@ def evaluate(state: TrainState, eval_dataloader, num_classes: int,
         else:
             eval_fpr, eval_tpr = [], []
             eval_auc = roc_auc_score(y_true, y_pred, multi_class='ovr')
-        progress_bar.set_postfix_str(f"Loss = {eval_loss:.4f}, AUC = {eval_auc:.3f}, Acc = {eval_accuracy:.3f}")
+        if hasattr(progress_bar, 'set_postfix_str'):
+            progress_bar.set_postfix_str(f"Loss = {eval_loss:.4f}, AUC = {eval_auc:.3f}, Acc = {eval_accuracy:.3f}")
     finally:
         progress_bar.close()
     return eval_loss, eval_auc, eval_accuracy, eval_fpr, eval_tpr
@@ -255,8 +256,9 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader,
             train_loss, train_auc, train_acc, _, _ = evaluate(state, train_dataloader, num_classes, tqdm_desc=None,
                                                               debug=debug, tqdm_cls=tqdm_cls)
             val_loss, val_auc, val_acc, _, _ = evaluate(state, val_dataloader, num_classes, tqdm_desc=None, debug=debug, tqdm_cls=tqdm_cls)
-            progress_bar.set_postfix_str(
-                f"Loss = {val_loss:.4f}, AUC = {val_auc:.3f}, Acc = {val_acc:.3f}, Train time = {epoch_train_time:.2f}s")
+            if hasattr(progress_bar, 'set_postfix_str'):
+                progress_bar.set_postfix_str(
+                    f"Loss = {val_loss:.4f}, AUC = {val_auc:.3f}, Acc = {val_acc:.3f}, Train time = {epoch_train_time:.2f}s")
         finally:
             progress_bar.close()
 

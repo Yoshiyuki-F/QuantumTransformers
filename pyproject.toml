@@ -29,7 +29,8 @@ dependencies = [
     "ipykernel",
     # Quantum
     "tensorcircuit-ng[jax]",
-    # CUDA GPU is not recognized with the latest cusparse
+    # CUDA GPU is not recognized with the latest cusparse(12.5.9.5, 12.5.10.65)
+    # RuntimeError: jaxlib/cuda/versions_helpers.cc:81: operation cusparseGetProperty(MAJOR_VERSION, &major) failed: The cuSPARSE library was not found.
     "nvidia-cusparse-cu12==12.5.8.93",
 ]
 

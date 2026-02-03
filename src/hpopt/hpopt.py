@@ -185,6 +185,11 @@ if __name__ == '__main__':
     else:
         raise ValueError(f"Unknown dataset {args.dataset}")
 
+    # To delete the following warning:
+    # `VIRTUAL_ENV=/-----/QuantumTransformers/.venv` does not match the project environment path `.venv` and will be ignored;
+    # use `--active` to target the active environment instead
+    if "VIRTUAL_ENV" in os.environ:
+        del os.environ["VIRTUAL_ENV"]
     ray.init()
 
     # GPU Check and Resource Configuration

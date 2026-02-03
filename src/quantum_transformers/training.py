@@ -9,7 +9,7 @@ import flax.training.train_state
 import optax
 from sklearn.metrics import roc_auc_score, roc_curve, auc
 from tqdm import tqdm
-import tensorflow as tf
+from torch.utils.tensorboard import SummaryWriter
 import os
 import datetime
 
@@ -170,7 +170,7 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader,
     log_dir = os.path.join(log_dir, timestamp)
     os.makedirs(log_dir, exist_ok=True)
 
-    writer = tf.summary.create_file_writer(log_dir)
+    writer = SummaryWriter(log_dir)
     print(f"Tensorboard logs will be saved to: {log_dir}")
 
     root_key = jax.random.PRNGKey(seed=seed)
@@ -246,13 +246,12 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader,
             progress_bar.set_postfix_str(
                 f"Loss = {val_loss:.4f}, AUC = {val_auc:.3f}, Acc = {val_acc:.3f}, Train time = {epoch_train_time:.2f}s")
 
-            with writer.as_default():
-                tf.summary.scalar('train_loss', train_loss, step=epoch)
-                tf.summary.scalar('train_auc', train_auc, step=epoch)
-                tf.summary.scalar('train_accuracy', train_acc, step=epoch)
-                tf.summary.scalar('val_loss', val_loss, step=epoch)
-                tf.summary.scalar('val_auc', val_auc, step=epoch)
-                tf.summary.scalar('val_accuracy', val_acc, step=epoch)
+            writer.add_scalar('train_loss', train_loss, epoch)
+            writer.add_scalar('train_auc', train_auc, epoch)
+            writer.add_scalar('train_accuracy', train_acc, epoch)
+            writer.add_scalar('val_loss', val_loss, epoch)
+            writer.add_scalar('val_auc', val_auc, epoch)
+            writer.add_scalar('val_accuracy', val_acc, epoch)
 
             metrics['train_losses'].append(train_loss)
             metrics['val_losses'].append(val_loss)
@@ -295,10 +294,11 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, test_dataloader,
     metrics['test_tpr'] = test_tpr
 
     # Write test set metrics to tensorboard
-    with writer.as_default():
-        tf.summary.scalar('test_loss', test_loss, step=num_epochs)
-        tf.summary.scalar('test_auc', test_auc, step=num_epochs)
-        tf.summary.scalar('test_accuracy', test_acc, step=num_epochs)
+    # Write test set metrics to tensorboard
+    writer.add_scalar('test_loss', test_loss, num_epochs)
+    writer.add_scalar('test_auc', test_auc, num_epochs)
+    writer.add_scalar('test_accuracy', test_acc, num_epochs)
+    writer.close()
 
     if use_ray:
         session.report({'test_loss': test_loss, 'test_auc': test_auc, 'test_accuracy': test_acc})

@@ -14,19 +14,19 @@ This repository contains implementations of quantum-enhanced transformer archite
 
 ## Installation
 
-This project uses Poetry for dependency management. Install dependencies with:
+This project uses `uv` for dependency management. Install dependencies with:
 
 ```bash
-poetry install
+uv sync
 ```
 
 ## Requirements
 
-- Python >=3.11, <3.12
-- CUDA 12.1 support
-- JAX with CUDA support
-- PyTorch with CUDA support
-- Various quantum computing libraries (PennyLane, Qiskit, Cirq)
+- Python >=3.13
+- CUDA 12.x / 13.x support
+- JAX 0.9.x with CUDA support
+- PyTorch 2.x with CUDA support
+- TensorCircuit (via tensorcircuit-ng)
 
 ## Architecture
 

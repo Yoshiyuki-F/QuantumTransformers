@@ -26,38 +26,7 @@ class PreNorm(nn.Module):
         x = nn.LayerNorm()(x)
         return self.fn(x, **kwargs)
 
-class FeedForward(nn.Module):
-    dim: int
-    hidden_dim: int
-    quantum_w_shape: tuple = (1,)
-    quantum_circuit: Optional[Callable] = None
-    use_pennylane: bool = False
-
-    @nn.compact
-    def __call__(self, x):
-        b, h, w, c = x.shape
-
-        if self.quantum_circuit is None:
-            x = nn.Dense(features=self.hidden_dim)(x)
-            x = nn.gelu(x)
-            x = nn.Dense(features=self.dim)(x)
-        else:
-
-            x = nn.Dense(features=self.hidden_dim)(x)
-            x = nn.gelu(x)
-
-            flat_batch_size = b * h * w
-            quantum_dim = min(8, self.hidden_dim)
-
-            x = x.reshape(flat_batch_size, -1)[:, :quantum_dim]
-            x = QuantumLayer(num_qubits=quantum_dim,
-                             w_shape=self.quantum_w_shape,
-                             circuit=self.quantum_circuit)(x)
-
-            x = nn.Dense(features=self.dim)(x)
-            x = x.reshape(b, h, w, self.dim)
-
-        return x
+from src.quantum_transformers.common_layers import FeedForward
 
 def create_mask(window_size, displacement, upper_lower, left_right):
     mask = jnp.zeros((window_size ** 2, window_size ** 2), dtype=jnp.float32)
@@ -88,7 +57,6 @@ class WindowAttention(nn.Module):
     relative_pos_embedding: bool
     quantum_w_shape: tuple = (1,)
     quantum_circuit: Optional[Callable] = None
-    use_pennylane: bool = False
 
     @nn.compact
     def __call__(self, x, deterministic=True):
@@ -101,32 +69,12 @@ class WindowAttention(nn.Module):
             k = nn.Dense(features=inner_dim, use_bias=False)(x)
             v = nn.Dense(features=inner_dim, use_bias=False)(x)
         else:
-            q = nn.Dense(features=inner_dim, use_bias=False)(x)
-            k = nn.Dense(features=inner_dim, use_bias=False)(x)
-            v = nn.Dense(features=inner_dim, use_bias=False)(x)
-
-            quantum_dim = min(8, inner_dim)
-
-            flat_batch_size = b * h * w
-
-            q = q.reshape(flat_batch_size, -1)[:, :quantum_dim]
-            k = k.reshape(flat_batch_size, -1)[:, :quantum_dim]
-            v = v.reshape(flat_batch_size, -1)[:, :quantum_dim]
-
-            q = QuantumLayer(num_qubits=quantum_dim, w_shape=self.quantum_w_shape,
-                             circuit=self.quantum_circuit)(q)
-            k = QuantumLayer(num_qubits=quantum_dim, w_shape=self.quantum_w_shape,
-                             circuit=self.quantum_circuit)(k)
-            v = QuantumLayer(num_qubits=quantum_dim, w_shape=self.quantum_w_shape,
-                             circuit=self.quantum_circuit)(v)
-
-            q = nn.Dense(features=inner_dim)(q)
-            k = nn.Dense(features=inner_dim)(k)
-            v = nn.Dense(features=inner_dim)(v)
-
-            q = q.reshape(b, h, w, inner_dim)
-            k = k.reshape(b, h, w, inner_dim)
-            v = v.reshape(b, h, w, inner_dim)
+            q = QuantumLayer(num_qubits=inner_dim, w_shape=self.quantum_w_shape,
+                             circuit=self.quantum_circuit)(x)
+            k = QuantumLayer(num_qubits=inner_dim, w_shape=self.quantum_w_shape,
+                             circuit=self.quantum_circuit)(x)
+            v = QuantumLayer(num_qubits=inner_dim, w_shape=self.quantum_w_shape,
+                             circuit=self.quantum_circuit)(x)
 
         assert inner_dim % self.heads == 0, f'Feature dimension ({inner_dim}) must be divisible by number of heads ({self.heads})'
 
@@ -144,19 +92,8 @@ class WindowAttention(nn.Module):
         if self.quantum_circuit is None:
             out = nn.Dense(features=self.dim)(out)
         else:
-
-            out = nn.Dense(features=self.dim)(out)
-
-            b, h, w, c = out.shape
-            flat_batch_size = b * h * w
-            quantum_dim = min(8, self.dim)
-
-            out = out.reshape(flat_batch_size, -1)[:, :quantum_dim]
-            out = QuantumLayer(num_qubits=quantum_dim, w_shape=self.quantum_w_shape,
+            out = QuantumLayer(num_qubits=self.dim, w_shape=self.quantum_w_shape,
                                circuit=self.quantum_circuit)(out)
-
-            out = nn.Dense(features=self.dim)(out)
-            out = out.reshape(b, h, w, self.dim)
 
         return out
 
@@ -171,7 +108,7 @@ class SwinBlock(nn.Module):
     quantum_w_shape: tuple = (1,)
     quantum_attn_circuit: Optional[Callable] = None
     quantum_mlp_circuit: Optional[Callable] = None
-    use_pennylane: bool = False
+    quantum_mlp_circuit: Optional[Callable] = None
 
     @nn.compact
     def __call__(self, x, deterministic=True):
@@ -183,16 +120,14 @@ class SwinBlock(nn.Module):
             window_size=self.window_size,
             relative_pos_embedding=self.relative_pos_embedding,
             quantum_w_shape=self.quantum_w_shape,
-            quantum_circuit=self.quantum_attn_circuit,
-            use_pennylane=self.use_pennylane
+            quantum_circuit=self.quantum_attn_circuit
         )))(x, deterministic=deterministic)
 
         x = Residual(PreNorm(fn=FeedForward(
             dim=self.dim,
             hidden_dim=self.mlp_dim,
             quantum_w_shape=self.quantum_w_shape,
-            quantum_circuit=self.quantum_mlp_circuit,
-            use_pennylane=self.use_pennylane
+            quantum_circuit=self.quantum_mlp_circuit
         )))(x)
         return x
 
@@ -239,7 +174,7 @@ class StageModule(nn.Module):
     quantum_w_shape: tuple = (1,)
     quantum_attn_circuit: Optional[Callable] = None
     quantum_mlp_circuit: Optional[Callable] = None
-    use_pennylane: bool = False
+    quantum_mlp_circuit: Optional[Callable] = None
 
     @nn.compact
     def __call__(self, x, deterministic=True):
@@ -300,7 +235,7 @@ class SwinTransformer(nn.Module):
     quantum_w_shape: tuple = (1,)
     quantum_attn_circuit: Optional[Callable] = None
     quantum_mlp_circuit: Optional[Callable] = None
-    use_pennylane: bool = False
+    quantum_mlp_circuit: Optional[Callable] = None
 
     @nn.compact
     def __call__(self, img, train=False):
@@ -332,8 +267,7 @@ class SwinTransformer(nn.Module):
                 relative_pos_embedding=self.relative_pos_embedding,
                 quantum_w_shape=self.quantum_w_shape,
                 quantum_attn_circuit=self.quantum_attn_circuit,
-                quantum_mlp_circuit=self.quantum_mlp_circuit,
-                use_pennylane=self.use_pennylane
+                quantum_mlp_circuit=self.quantum_mlp_circuit
             )(x, deterministic=not train)
 
         x = jnp.mean(x, axis=[2, 3])

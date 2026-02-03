@@ -11,23 +11,18 @@ text_datasets = ['imdb']
 
 def train(config) -> None:
     # Perform imports here to avoid warning messages when running only --help
-    import tensorflow as tf
-    tf.config.set_visible_devices([], device_type='GPU')  # Ensure TF does not see GPU and grab all GPU memory
+
     from src.quantum_transformers import datasets
     from src.quantum_transformers.transformers import Transformer, VisionTransformer
     from src.quantum_transformers.training import train_and_evaluate
     from src.quantum_transformers.swintransformer import SwinTransformer
 
     c = config  # Shorter alias for config
-    tf.random.set_seed(c['seed'])  # For reproducible data loading
 
     num_classes = {'imdb': 2, 'mnist': 10, 'electron-photon': 2, 'quark-gluon': 2}  # TODO: add medmnist
     model: Transformer | VisionTransformer | SwinTransformer  # Update model type
 
-    if c['pl']:
-        from src.quantum_transformers.quantum_layer_pennylane import get_circuit
-    else:
-        from src.quantum_transformers.quantum_layer import get_circuit
+    from src.quantum_transformers.quantum_layer import get_circuit
 
     if c['dataset'] in text_datasets:  # Text datasets
         if c['dataset'] == 'imdb':
@@ -42,8 +37,7 @@ def train(config) -> None:
                             num_transformer_blocks=c['num_transformer_blocks'], mlp_hidden_size=c['mlp_hidden_size'],
                             dropout=c['dropout'],
                             quantum_attn_circuit=get_circuit() if c['quantum'] else None,
-                            quantum_mlp_circuit=get_circuit() if c['quantum'] else None,
-                            use_pennylane=c['pl'])
+                            quantum_mlp_circuit=get_circuit() if c['quantum'] else None)
     elif c.get('swin', False):
         train_dataloader, val_dataloader, test_dataloader = datasets.get_mnist_dataloaders(data_dir=c['data_dir'],
                                                                                                batch_size=c[
@@ -60,8 +54,7 @@ def train(config) -> None:
             downscaling_factors=(2, 1),
             relative_pos_embedding=True,
             quantum_attn_circuit=get_circuit() if c['quantum'] else None,
-            quantum_mlp_circuit=get_circuit() if c['quantum'] else None,
-            use_pennylane=c['pl']
+            quantum_mlp_circuit=get_circuit() if c['quantum'] else None
         )
     else:  # Vision datasets
         if c['dataset'] == 'mnist':
@@ -88,8 +81,7 @@ def train(config) -> None:
                                   mlp_hidden_size=c['mlp_hidden_size'],
                                   pos_embedding=c['pos_embedding'], dropout=c['dropout'],
                                   quantum_attn_circuit=get_circuit() if c['quantum'] else None,
-                                  quantum_mlp_circuit=get_circuit() if c['quantum'] else None,
-                                  use_pennylane=c['pl'])
+                                  quantum_mlp_circuit=get_circuit() if c['quantum'] else None)
 
     # Train and evaluate
     train_and_evaluate(model=model, train_dataloader=train_dataloader, val_dataloader=val_dataloader,
@@ -107,7 +99,7 @@ if __name__ == '__main__':
     argparser.add_argument('--quantum', action='store_true', help='whether to use quantum transformers')
     argparser.add_argument('--swin', action='store_true', help='whether to use Swin Transformer for training')
     argparser.add_argument('--trials', type=int, default=10, help='number of trials to run')
-    argparser.add_argument('--pl', action='store_true', help='whether to use pennylane')
+    argparser.add_argument('--trials', type=int, default=10, help='number of trials to run')
     args, unknown = argparser.parse_known_args()
     print(f"args = {args}, unknown = {unknown}")
 
@@ -117,7 +109,7 @@ if __name__ == '__main__':
         'dataset': args.dataset,
         'quantum': args.quantum,
         'swin': args.swin,  # Add swin parameter to config
-        'pl': args.pl,
+        'swin': args.swin,  # Add swin parameter to config
         'num_epochs': 10,
         'batch_size': tune.choice([32]),
         'hidden_size': tune.choice([8]),

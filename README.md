@@ -25,7 +25,8 @@ uv sync
 - Python >=3.13
 - CUDA 12.x / 13.x support
 - JAX 0.9.x with CUDA support
-- PyTorch 2.x with CUDA support
+- PyTorch 2.x (CPU only, just used for data loading)
+- Ray Tune (for hyperparameter optimization)
 - TensorCircuit (via tensorcircuit-ng)
 
 ## Architecture

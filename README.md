@@ -53,7 +53,36 @@ The project implements several transformer architectures:
 
 ## Usage
 
-The main implementations can be found in the `src/quantum_transformers/` directory.
+The main training script is `src/hpopt/hpopt.py`. You can run it locally using `uv run`.
+
+### Examples
+
+**Train Swin Transformer on MNIST:**
+```bash
+uv run python src/hpopt/hpopt.py mnist --swin
+```
+
+**Train Quantum Swin Transformer on MNIST:**
+```bash
+uv run python src/hpopt/hpopt.py mnist --swin --quantum
+```
+
+**Train Classical ViT on MNIST:**
+```bash
+uv run python src/hpopt/hpopt.py mnist
+```
+
+**Train Quantum ViT on MNIST:**
+```bash
+uv run python src/hpopt/hpopt.py mnist --quantum
+```
+
+**Arguments:**
+- `dataset`: Name of the dataset (`mnist`, `imdb`, etc.)
+- `--swin`: Use Swin Transformer architecture (default is ViT if not specified)
+- `--quantum`: Use Quantum layers (default is Classical if not specified)
+- `--trials`: Number of Ray Tune trials (default: 10)
+- `--force-cpu`: Force execution on CPU (required if no GPU is available)
 
 ## Evaluation
 

@@ -4,6 +4,7 @@ import argparse
 
 import ray
 from ray import tune, air
+import jax
 
 
 vision_datasets = ['mnist', 'electron-photon', 'quark-gluon']  # TODO: add medmnist
@@ -99,7 +100,7 @@ if __name__ == '__main__':
     argparser.add_argument('--quantum', action='store_true', help='whether to use quantum transformers')
     argparser.add_argument('--swin', action='store_true', help='whether to use Swin Transformer for training')
     argparser.add_argument('--trials', type=int, default=10, help='number of trials to run')
-    argparser.add_argument('--trials', type=int, default=10, help='number of trials to run')
+    argparser.add_argument('--force-cpu', action='store_true', help='Force training on CPU even if GPU is available (or if no GPU found)')
     args, unknown = argparser.parse_known_args()
     print(f"args = {args}, unknown = {unknown}")
 
@@ -108,7 +109,6 @@ if __name__ == '__main__':
         'data_dir': tune.choice(['~/.tensorflow_datasets']),
         'dataset': args.dataset,
         'quantum': args.quantum,
-        'swin': args.swin,  # Add swin parameter to config
         'swin': args.swin,  # Add swin parameter to config
         'num_epochs': 10,
         'batch_size': tune.choice([32]),
@@ -138,7 +138,24 @@ if __name__ == '__main__':
 
     ray.init()
 
-    resources_per_trial = {"cpu": 16, "gpu": 1}
+    # GPU Check and Resource Configuration
+    if args.force_cpu:
+        print("Forced CPU mode enabled.")
+        num_gpus_per_trial = 0
+    else:
+        try:
+            # Check if JAX can see any GPUs
+            gpus = jax.devices('gpu')
+            if not gpus:
+                 # This might happen if jax[cpu] is installed or CUDA is not visible
+                 raise RuntimeError("No GPU found by JAX.")
+            print(f"JAX detected {len(gpus)} GPU(s): {gpus}")
+            num_gpus_per_trial = 1
+        except RuntimeError as e:
+             # JAX raises RuntimeError if 'gpu' backend is not found
+             raise RuntimeError(f"No GPU found! ({e}). Use --force-cpu to run on CPU.")
+
+    resources_per_trial = {"cpu": 16, "gpu": num_gpus_per_trial}
     tuner = tune.Tuner(
         tune.with_resources(train, resources=resources_per_trial),
         tune_config=tune.TuneConfig(

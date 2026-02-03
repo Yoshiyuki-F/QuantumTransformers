@@ -7,28 +7,30 @@ requires-python = ">=3.13"
 dependencies = [
     # Core JAX & Optimization
     "jax[cuda12]>=0.9.0",
-    "flax>=0.12.2",
-    "optax>=0.2.6",
-    "einops>=0.8.2",
+    "flax",
+    "optax",
+    "einops",
     # Data & Tokenizers
-    "transformers>=5.0.0",
-    "datasets>=4.5.0",
-    "gdown>=5.2.1",
+    "transformers",
+    "datasets",
+    "gdown",
     # Utilities & Evaluation
-    "scikit-learn>=1.8.0",
-    "ray[tune]>=2.53.0",
-    "tqdm>=4.67.3",
+    "scikit-learn",
+    "ray[tune]",
+    "tqdm",
     # Visualization (PyTorch CPU for TensorBoard only)
     "torch",
     "torchvision",
-    "matplotlib>=3.10.8",
-    "seaborn>=0.13.2",
-    "tensorboard>=2.20.0",
+    "matplotlib",
+    "seaborn",
+    "tensorboard",
     # Development & Notebooks
-    "jupyterlab>=4.5.3",
-    "ipykernel>=7.1.0",
+    "jupyterlab",
+    "ipykernel",
     # Quantum
     "tensorcircuit-ng[jax]",
+    # CUDA GPU is not recognized with the latest cusparse
+    "nvidia-cusparse-cu12==12.5.8.93",
 ]
 
 [[tool.uv.index]]

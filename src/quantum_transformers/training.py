@@ -115,7 +115,11 @@ def evaluate(state: TrainState, eval_dataloader, num_classes: int,
     correct = 0
     total = 0
 
-    progress_bar = tqdm_cls(total=len(eval_dataloader), desc=tqdm_desc, disable=tqdm_desc is None)
+    kwargs = {'total': len(eval_dataloader), 'desc': tqdm_desc}
+    # ray.experimental.tqdm_ray does not support 'disable' argument
+    if not tqdm_cls.__module__.startswith('ray'):
+        kwargs['disable'] = tqdm_desc is None
+    progress_bar = tqdm_cls(**kwargs)
     try:
         for inputs_batch, labels_batch in eval_dataloader:
             loss_batch, logits_batch = eval_step(state, inputs_batch, labels_batch)

@@ -106,33 +106,67 @@ if __name__ == '__main__':
                            choices=vision_datasets + text_datasets)
     argparser.add_argument('--quantum', action='store_true', help='whether to use quantum transformers')
     argparser.add_argument('--swin', action='store_true', help='whether to use Swin Transformer for training')
-    argparser.add_argument('--trials', type=int, default=10, help='number of trials to run')
+    argparser.add_argument('--trials', type=int, default=1, help='number of trials to run')
     argparser.add_argument('--force-cpu', action='store_true', help='Force training on CPU even if GPU is available (or if no GPU found)')
     args, unknown = argparser.parse_known_args()
     print(f"args = {args}, unknown = {unknown}")
 
-    param_space = {
+    common_params = {
         'seed': 42,
-        'data_dir': tune.choice(['~/data']),
+        'data_dir': '~/data',
         'dataset': args.dataset,
         'quantum': args.quantum,
-        'swin': args.swin,  # Add swin parameter to config
+        'swin': args.swin,
         'num_epochs': 1,
-
-        'batch_size': tune.choice([64, 128, 256]),
-        'hidden_size': tune.choice([32, 64, 96]),
-        'mlp_hidden_size': tune.choice([128, 256, 384]),
-
-        'num_heads': tune.choice([2, 4]), # hidden_sizeを割り切れる数であることに注意
-        'num_transformer_blocks': tune.choice([2, 4, 6]), # 層を深くする
-
-        'dropout': tune.uniform(0.0, 0.3),
-
-        'lrs_peak_value': tune.loguniform(1e-4, 5e-3),
-        # 総ステップ数が数千(例: 4680)になるため、それに合わせる
-        'lrs_warmup_steps': tune.choice([100, 500]),
-        'lrs_decay_steps': tune.choice([2000, 5000, 10000]),
     }
+
+    # 2. モードに応じたパラメータ空間の定義
+    if args.quantum:
+        # --- Quantum用 (シミュレーションコストを抑える設定) ---
+        specific_params = {
+            # シミュレーションが重いためバッチサイズは小さめに
+            'batch_size': tune.choice([32, 64]),
+
+            # QMLでは量子ビット数=Hidden Sizeになることが多いため、大きくしすぎない
+            # (通常 4, 8, 16 程度が限界)
+            'hidden_size': tune.choice([4, 8]),
+
+            # 量子回路のパラメータ数が増えすぎないように抑制
+            'mlp_hidden_size': tune.choice([4, 8, 16]),
+
+            # 回路が深くなると勾配消失や計算コスト爆増するため浅くする
+            'num_heads': tune.choice([1, 2]),
+            'num_transformer_blocks': tune.choice([1, 2]),
+
+            # 学習率などはClassicalと少し変える場合があるが、まずは広めに
+            'lrs_peak_value': tune.loguniform(1e-3, 1e-1),
+            'lrs_warmup_steps': tune.choice([0, 100]),
+            'lrs_decay_steps': tune.choice([1000, 5000]),
+            'dropout': tune.uniform(0.0, 0.1),  # 量子回路自体にノイズがあるならDropout不要なことも
+        }
+
+    else:
+        # --- Classical (Swin/Standard) 用 (GPU性能を活かす設定) ---
+        specific_params = {
+            # GPU活用のためバッチサイズ大きめ
+            'batch_size': tune.choice([64, 128, 256]),
+
+            # 表現力を高めるために十分なサイズを確保
+            'hidden_size': tune.choice([32, 64, 96]),
+            'mlp_hidden_size': tune.choice([128, 256, 384]),
+
+            # 深く、多頭に
+            'num_heads': tune.choice([2, 4]),
+            'num_transformer_blocks': tune.choice([2, 4, 6]),
+
+            'lrs_peak_value': tune.loguniform(1e-4, 5e-3),
+            'lrs_warmup_steps': tune.choice([100, 500]),
+            'lrs_decay_steps': tune.choice([2000, 5000, 10000]),
+            'dropout': tune.uniform(0.0, 0.3),
+        }
+
+    # 3. 辞書の結合 (Python 3.9+なら | 演算子が使えます)
+    param_space = {**common_params, **specific_params}
 
     if args.dataset in text_datasets:
         param_space['max_seq_len'] = tune.choice([32, 64, 128, 256, 512])
@@ -140,7 +174,10 @@ if __name__ == '__main__':
     elif args.dataset in vision_datasets:
         param_space['pos_embedding'] = tune.choice(['learn', 'sincos'])
         if args.dataset == 'mnist':
-            param_space['patch_size'] = tune.choice([4, 7, 14, 28])
+            if args.quantum:
+                param_space['patch_size'] = tune.choice([7, 14])
+            else:
+                param_space['patch_size'] = tune.choice([4, 7])
         elif args.dataset == 'electron-photon':
             param_space['patch_size'] = tune.choice([4, 8, 16, 32])
         elif args.dataset == 'quark-gluon':
